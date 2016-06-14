@@ -128,8 +128,14 @@ public class Biu {
 	public static final HashMap<String,String> SERVICE_PACK_NAMES = new HashMap<String,String>();
 	public static final HashMap<String,String> REGION_NAMES = new HashMap<String,String>();
 	public static final HashMap<String,Regions> PROFILE_REGIONS = new HashMap<String,Regions>();
+	
+	public static final ArrayList<String> SKIPPED_METHODS = new ArrayList<String>();
+	
 
 	static {
+		SKIPPED_METHODS.add("main");
+		SKIPPED_METHODS.add("coreV2");
+		
 		PROFILE_REGIONS.put("default", Regions.CN_NORTH_1);
 		PROFILE_REGIONS.put("global", Regions.US_EAST_1);
 		PROFILE_REGIONS.put("china", Regions.CN_NORTH_1);
@@ -1418,8 +1424,7 @@ public class Biu {
 	
 	public static void coreV2(String[] args) throws Exception{
 		
-		ArrayList<String> skipMethods = new ArrayList<String>();
-		skipMethods.add("main");skipMethods.add("coreV2");
+		
 		
 		if(args==null || args.length==0){
 			System.out.println("Usage:");
@@ -1436,7 +1441,7 @@ public class Biu {
 			for(Method m:methods){
 				sb = new StringBuffer();
 				mn = m.getName();
-				if(skipMethods.contains(mn)){
+				if(SKIPPED_METHODS.contains(mn)){
 					continue;
 				}
 				sb.append(mn+": ");
@@ -1461,8 +1466,8 @@ public class Biu {
 				methods.add(m);
 			}
 		}
-		if(skipMethods.contains(args[0])){
-			System.out.println("options unkown.");
+		if(SKIPPED_METHODS.contains(args[0])){
+			//System.out.println("options unkown.");
 			return;
 		}
 		for(Method m:methods){

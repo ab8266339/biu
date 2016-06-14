@@ -1,5 +1,10 @@
 package bglutil.common;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+
+import bglutil.Biu;
+
 public class Helper {
 	
 	// Enable the '-h' option for methods which call help.
@@ -8,6 +13,19 @@ public class Helper {
 			StackTraceElement element = Thread.currentThread().getStackTrace()[2];
 			System.out.println("\n b "+element.getMethodName()+" "+helpMessage+"\n");
 			System.exit(0);
+		}
+	}
+	
+	// Help those who cannot remember command names.
+	public static void searh(String commandPrefix){
+		Method[] allMethods = Biu.class.getDeclaredMethods();
+		for(Method m:allMethods){
+			if(Biu.SKIPPED_METHODS.contains(m.getName())){
+				continue;
+			}
+			if(Modifier.isPublic(m.getModifiers()) && m.getName().startsWith(commandPrefix)){
+				System.out.println(m.getName());
+			}
 		}
 	}
 	
