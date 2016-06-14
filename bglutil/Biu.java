@@ -318,7 +318,7 @@ public class Biu {
 	 * @param profile
 	 * @throws Exception
 	 */
-	public void showInstanceHealthByELb(String elbName, String profile) throws Exception{
+	public void showInstanceHealthByElb(String elbName, String profile) throws Exception{
 		h.help(elbName,"<elb-name> <profile>");
 		ELBUtil util = new ELBUtil();
 		AmazonElasticLoadBalancing elb = (AmazonElasticLoadBalancing) Clients.getClientByProfile(Clients.ELB, profile);
