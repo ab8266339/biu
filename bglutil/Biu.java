@@ -586,6 +586,7 @@ public class Biu {
 		this.dropmeAmi(objectPrefixToClean,profile);
 		this.dropmeEmr(objectPrefixToClean,profile);
 		this.dropmeRt(objectPrefixToClean,profile);
+		System.out.println("Troll RTB");
 	}
 	
 	public void dropmeRt(String prefix, String profile) throws Exception{

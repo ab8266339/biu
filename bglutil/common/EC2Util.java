@@ -17,6 +17,7 @@ import com.amazonaws.services.ec2.model.DeleteSecurityGroupRequest;
 import com.amazonaws.services.ec2.model.DeleteSnapshotRequest;
 import com.amazonaws.services.ec2.model.DeleteSubnetRequest;
 import com.amazonaws.services.ec2.model.DeleteVolumeRequest;
+import com.amazonaws.services.ec2.model.DeleteVpcPeeringConnectionRequest;
 import com.amazonaws.services.ec2.model.DeleteVpcRequest;
 import com.amazonaws.services.ec2.model.DeregisterImageRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
@@ -34,6 +35,7 @@ import com.amazonaws.services.ec2.model.DescribeSnapshotsResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
 import com.amazonaws.services.ec2.model.DescribeVolumesResult;
+import com.amazonaws.services.ec2.model.DescribeVpcPeeringConnectionsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsResult;
 import com.amazonaws.services.ec2.model.DetachInternetGatewayRequest;
@@ -63,6 +65,7 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.UserIdGroupPair;
 import com.amazonaws.services.ec2.model.Volume;
 import com.amazonaws.services.ec2.model.Vpc;
+import com.amazonaws.services.ec2.model.VpcPeeringConnection;
 
 public class EC2Util {
 		
@@ -438,6 +441,16 @@ public class EC2Util {
 					ec2.deleteSecurityGroup(new DeleteSecurityGroupRequest().withGroupId(sg.getGroupId()));
 				}
 			}
+			Filter filterForVpcPeeringRequester = new Filter().withName("requester-vpc-info.vpc-id").withValues(vpc.getVpcId());
+			Filter filterForVpcPeeringAccepter = new Filter().withName("accepter-vpc-info.vpc-id").withValues(vpc.getVpcId());
+			for(VpcPeeringConnection c:ec2.describeVpcPeeringConnections(new DescribeVpcPeeringConnectionsRequest().withFilters(filterForVpcPeeringRequester)).getVpcPeeringConnections()){
+				System.out.println("=> Deleting depending vpc peering connection: "+c.getVpcPeeringConnectionId());
+				ec2.deleteVpcPeeringConnection(new DeleteVpcPeeringConnectionRequest().withVpcPeeringConnectionId(c.getVpcPeeringConnectionId()));
+			}
+			for(VpcPeeringConnection c:ec2.describeVpcPeeringConnections(new DescribeVpcPeeringConnectionsRequest().withFilters(filterForVpcPeeringAccepter)).getVpcPeeringConnections()){
+				System.out.println("=> Deleting depending vpc peering connection: "+c.getVpcPeeringConnectionId());
+				ec2.deleteVpcPeeringConnection(new DeleteVpcPeeringConnectionRequest().withVpcPeeringConnectionId(c.getVpcPeeringConnectionId()));
+			}
 			try {
 				Thread.sleep(3*1000);
 			} catch (InterruptedException e) {
@@ -449,6 +462,7 @@ public class EC2Util {
 	}
 	
 	public String runInstance(AmazonEC2 ec2, String imageId, String keyName, String subnetId, String backupSubnetId, String securityGroupId, String userData, String iamInstanceProfile){
+		// ami-baada8e8 the proxy server in Singapore.
 		InstanceType instanceType = InstanceType.T2Micro;
 		int minCount = 1;
 		RunInstancesRequest runRequest = null;
