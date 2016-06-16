@@ -39,6 +39,7 @@ import com.amazonaws.services.ec2.model.DescribeVpcPeeringConnectionsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsResult;
 import com.amazonaws.services.ec2.model.DetachInternetGatewayRequest;
+import com.amazonaws.services.ec2.model.DetachVolumeRequest;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
@@ -64,6 +65,7 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.UserIdGroupPair;
 import com.amazonaws.services.ec2.model.Volume;
+import com.amazonaws.services.ec2.model.VolumeState;
 import com.amazonaws.services.ec2.model.Vpc;
 import com.amazonaws.services.ec2.model.VpcPeeringConnection;
 
@@ -351,6 +353,17 @@ public class EC2Util {
 			DescribeVolumesResult result = ec2.describeVolumes(request);
 			for(Volume vol:result.getVolumes()){
 				System.out.println("=> Deleting "+vol.getVolumeId());
+				ec2.detachVolume(new DetachVolumeRequest().withForce(true).withVolumeId(vol.getVolumeId()));
+				int maxWait = 10;
+				while(!ec2.describeVolumes(new DescribeVolumesRequest().withVolumeIds(vol.getVolumeId())).getVolumes().get(0).getState().equals(VolumeState.Available.toString())){
+					maxWait--;
+					try {
+						Thread.sleep(5*1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					if(maxWait==0){break;}
+				}
 				ec2.deleteVolume(new DeleteVolumeRequest().withVolumeId(vol.getVolumeId()));
 			}
 			nextToken = result.getNextToken();

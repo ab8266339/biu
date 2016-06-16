@@ -1145,7 +1145,7 @@ public class Biu {
 		System.out.println(presignedUrl);
 	}
 	
-	public void generatePresignedUrl(String profile, String bucketName, String key, String validDurationInDays) throws Exception{
+	public void generatePresignedUrl(String bucketName, String key, String validDurationInDays, String profile) throws Exception{
 		h.help(bucketName,"<bucket-name> <key> <valid-days> <profile>");
 		S3Util s3util = new S3Util();
 		URL url = null;
