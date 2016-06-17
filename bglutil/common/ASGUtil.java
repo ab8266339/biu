@@ -176,6 +176,7 @@ public class ASGUtil {
 		String c1 = null;
 		boolean commandEnd = false;
 		for(int i=2;i<commandsToAmi.length;i++){
+			//System.out.println(commandsToAmi[i]);
 			if(commandsToAmi[i].startsWith("\"")){
 				cBuffer = new StringBuffer();
 				c1 = commandsToAmi[i].replaceFirst("\"", "");
@@ -910,6 +911,68 @@ public class ASGUtil {
 			switchedCount = switchedCount + increment;
 			System.out.println((switchedCount) + " instance switched.");
 		}
+		/*
+		 * Deprecated by growing/shrinking // Add a new member.
+		 * if(originalSize.equals(originalMaxSize)){
+		 * aas.updateAutoScalingGroup(new UpdateAutoScalingGroupRequest()
+		 * .withAutoScalingGroupName(asgName) .withMaxSize(1+originalSize)
+		 * .withDesiredCapacity(1+originalSize)); } else{
+		 * aas.updateAutoScalingGroup(new UpdateAutoScalingGroupRequest()
+		 * .withAutoScalingGroupName(asgName)
+		 * .withDesiredCapacity(1+originalSize)); }
+		 * 
+		 * System.out.println("Growing group size to: "+(1+originalSize)); try {
+		 * // Cool down. System.out.println("Cool down...");
+		 * Thread.sleep(1000*60*waitMins); } catch (InterruptedException e) {
+		 * e.printStackTrace(); } // Natural kill one old instance.
+		 * if(originalSize.equals(originalMaxSize)){
+		 * aas.updateAutoScalingGroup(new UpdateAutoScalingGroupRequest()
+		 * .withAutoScalingGroupName(asgName) .withDesiredCapacity(originalSize)
+		 * .withMaxSize(originalMaxSize)); } else{
+		 * aas.updateAutoScalingGroup(new UpdateAutoScalingGroupRequest()
+		 * .withAutoScalingGroupName(asgName)
+		 * .withDesiredCapacity(originalSize)); }
+		 * 
+		 * System.out.println("Shrinking back to original group size: "+originalSize
+		 * ); try { // Cool down. System.out.println("Cool down...");
+		 * Thread.sleep(1000*60*waitMins); } catch (InterruptedException e) {
+		 * e.printStackTrace(); }
+		 * 
+		 * // Terminate old members one-by-one //List<Instance> currentInstances
+		 * = res.getAutoScalingGroups().get(0).getInstances();
+		 * TerminateInstanceInAutoScalingGroupRequest tiiasgr = null; String
+		 * instanceId = null;
+		 * 
+		 * for(Instance instance:oldInstances){ if((elbName != null) && (elb !=
+		 * null)){ Integer drainingTimeout =
+		 * elb.describeLoadBalancerAttributes(new
+		 * DescribeLoadBalancerAttributesRequest()
+		 * .withLoadBalancerName(elbName)
+		 * ).getLoadBalancerAttributes().getConnectionDraining().getTimeout();
+		 * elb.deregisterInstancesFromLoadBalancer( new
+		 * DeregisterInstancesFromLoadBalancerRequest()
+		 * .withLoadBalancerName(elbName) .withInstances(new
+		 * com.amazonaws.services.elasticloadbalancing.model.Instance()
+		 * .withInstanceId(instance.getInstanceId() )));
+		 * System.out.println("Instance "
+		 * +instance.getInstanceId()+" deregistering from "+elbName); // Wait
+		 * for connection draining. try {
+		 * System.out.println("Waiting for connection draining...");
+		 * Thread.sleep(1000*drainingTimeout); } catch (InterruptedException e)
+		 * { e.printStackTrace(); } }
+		 * 
+		 * instanceId = instance.getInstanceId(); tiiasgr = new
+		 * TerminateInstanceInAutoScalingGroupRequest()
+		 * .withInstanceId(instanceId)
+		 * .withShouldDecrementDesiredCapacity(false); try{
+		 * aas.terminateInstanceInAutoScalingGroup(tiiasgr);
+		 * System.out.println("Instance: " + instanceId +
+		 * " termination requested."); try { // Cool down.
+		 * System.out.println("Cool down..."); Thread.sleep(1000*60*waitMins); }
+		 * catch (InterruptedException e) { e.printStackTrace(); } }
+		 * catch(AmazonServiceException ex){
+		 * System.out.println(ex.getErrorMessage()); } }
+		 */
 		System.out.println("Rolling terminate instances in ASG: " + asgName
 				+ " completed.");
 	}

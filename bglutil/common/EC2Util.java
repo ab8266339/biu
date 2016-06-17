@@ -12,6 +12,7 @@ import com.amazonaws.services.ec2.model.CreateNetworkAclEntryRequest;
 import com.amazonaws.services.ec2.model.DeleteInternetGatewayRequest;
 import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DeleteNetworkAclEntryRequest;
+import com.amazonaws.services.ec2.model.DeleteNetworkInterfaceRequest;
 import com.amazonaws.services.ec2.model.DeleteRouteTableRequest;
 import com.amazonaws.services.ec2.model.DeleteSecurityGroupRequest;
 import com.amazonaws.services.ec2.model.DeleteSnapshotRequest;
@@ -27,6 +28,7 @@ import com.amazonaws.services.ec2.model.DescribeInstanceStatusResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeInternetGatewaysRequest;
+import com.amazonaws.services.ec2.model.DescribeNetworkInterfacesRequest;
 import com.amazonaws.services.ec2.model.DescribeRouteTablesRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
@@ -39,6 +41,7 @@ import com.amazonaws.services.ec2.model.DescribeVpcPeeringConnectionsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsRequest;
 import com.amazonaws.services.ec2.model.DescribeVpcsResult;
 import com.amazonaws.services.ec2.model.DetachInternetGatewayRequest;
+import com.amazonaws.services.ec2.model.DetachNetworkInterfaceRequest;
 import com.amazonaws.services.ec2.model.DetachVolumeRequest;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
 import com.amazonaws.services.ec2.model.Filter;
@@ -53,6 +56,7 @@ import com.amazonaws.services.ec2.model.InternetGateway;
 import com.amazonaws.services.ec2.model.IpPermission;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.ModifyInstanceAttributeRequest;
+import com.amazonaws.services.ec2.model.NetworkInterface;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RouteTable;
 import com.amazonaws.services.ec2.model.RuleAction;
@@ -423,6 +427,17 @@ public class EC2Util {
 	public void dropKeypair(AmazonEC2 ec2, String keyName){
 		ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyName));
 		System.out.println("=> Deleting KeyPair: "+keyName);
+	}
+	
+	public void dropeEniByFilter(AmazonEC2 ec2, Filter filter){
+		for(NetworkInterface nic:ec2.describeNetworkInterfaces(new DescribeNetworkInterfacesRequest().withFilters(filter)).getNetworkInterfaces()){
+			System.out.print("=> Deleting ENI: "+nic.getNetworkInterfaceId()+" ...");
+			if(nic.getAttachment()!=null){
+				ec2.detachNetworkInterface(new DetachNetworkInterfaceRequest().withForce(true).withAttachmentId(nic.getAttachment().getAttachmentId()));
+			}
+			ec2.deleteNetworkInterface(new DeleteNetworkInterfaceRequest().withNetworkInterfaceId(nic.getNetworkInterfaceId()));
+			System.out.println("done.");
+		}
 	}
 	
 	public void dropVpcByFilter(AmazonEC2 ec2, Filter filter){

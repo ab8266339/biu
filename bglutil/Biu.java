@@ -38,6 +38,7 @@ import bglutil.common.IAMUtil;
 import bglutil.common.KMSUtil;
 import bglutil.common.KinesisUtil;
 import bglutil.common.S3Util;
+import bglutil.common.SQSUtil;
 import bglutil.common.STSUtil;
 
 import com.amazonaws.AmazonClientException;
@@ -110,28 +111,12 @@ public class Biu {
 	
 	private static final Helper h = new Helper();
 	
-	private static final String CONFIG_BACKUP_BUCKET = ""; // Used for routines require a bucket for staging.
-	
-	private static final String CONFIG_APP_NACL_BEIJING = ""; // Used for close/openBeijingNetwork()
-	private static final String CONFIG_DEFAULT_NACL_BEIJING = ""; // Used for close/openBeijingNetwork()
-	private static final String CONFIG_APP_NACL_VIR = ""; // Used for close/openVirNetwork()
-	private static final String CONFIG_APP_NACL_TOKYO = ""; // Used for close/openTokyoNetwork()
-	private static final String CONFIG_DEFAULT_NACL_TOKYO = ""; // Used for close/openTokyoNetwork()
-	private static final String CONFIG_MFA_USERNAME = ""; // Used for MFA demo
-	private static final String CONFIG_MFA_ARN = ""; // Used for MFA demo
-	private static final String CONFIG_EXAMPLE_IAM_ROLE_ARN = ""; // Used for AssumeRole demo
-	private static final String CONFIG_BEIJING_EC2_KEYPAIR_NAME = ""; // Used for EC2 and ASG demo
-	private static final String CONFIG_BEIJING_DEFAULT_VPC_SUBNET1 = ""; // Used for EC2 and ASG demo
-	private static final String CONFIG_BEIJING_DEFAULT_VPC_SUBNET2 = ""; // Used for EC2 and ASG demo
-	private static final String CONFIG_BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP = ""; // Used for EC2 and ASG demo
-	
 	public static final HashMap<String,String> SERVICE_PACK_NAMES = new HashMap<String,String>();
 	public static final HashMap<String,String> REGION_NAMES = new HashMap<String,String>();
 	public static final HashMap<String,Regions> PROFILE_REGIONS = new HashMap<String,Regions>();
-	
+
 	public static final ArrayList<String> SKIPPED_METHODS = new ArrayList<String>();
 	
-
 	static {
 		SKIPPED_METHODS.add("main");
 		SKIPPED_METHODS.add("coreV2");
@@ -139,7 +124,7 @@ public class Biu {
 		PROFILE_REGIONS.put("default", Regions.CN_NORTH_1);
 		PROFILE_REGIONS.put("global", Regions.US_EAST_1);
 		PROFILE_REGIONS.put("china", Regions.CN_NORTH_1);
-		PROFILE_REGIONS.put(CONFIG_MFA_USERNAME, Regions.US_EAST_1);
+		PROFILE_REGIONS.put(Config.MFA_USERNAME, Regions.US_EAST_1);
 		
 		PROFILE_REGIONS.put("beijing", Regions.CN_NORTH_1);
 		PROFILE_REGIONS.put("virginia", Regions.US_EAST_1);
@@ -395,10 +380,10 @@ public class Biu {
 		STSUtil util = new STSUtil();
 		
 		h.title("GetSessionToken /w MFA from Permanent Crendentials");
-		AWSSecurityTokenService stsPawnGlobal = (AWSSecurityTokenService) Clients.getClientByProfile(Clients.STS, CONFIG_MFA_USERNAME);
+		AWSSecurityTokenService stsPawnGlobal = (AWSSecurityTokenService) Clients.getClientByProfile(Clients.STS, Config.MFA_USERNAME);
 		try{
 			System.out.println("Calling user: "+stsPawnGlobal.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
-			BasicSessionCredentials bsc1 = util.getSessionTokenMFA(stsPawnGlobal, durationSec, CONFIG_MFA_ARN, tokenCode);
+			BasicSessionCredentials bsc1 = util.getSessionTokenMFA(stsPawnGlobal, durationSec, Config.MFA_ARN, tokenCode);
 			System.out.println("Temp AK: "+bsc1.getAWSAccessKeyId());
 		}catch (AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -434,7 +419,7 @@ public class Biu {
 		System.out.println("Calling user: "+stsChina.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
 		BasicSessionCredentials bsc4 = null;
 		try{
-			bsc4 = util.assumeRole(stsChina, durationSec, CONFIG_EXAMPLE_IAM_ROLE_ARN, "developer");
+			bsc4 = util.assumeRole(stsChina, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "developer");
 			System.out.println("Temp AK: "+bsc4.getAWSAccessKeyId());
 		}catch(AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -445,7 +430,7 @@ public class Biu {
 		stsRole.setRegion(Region.getRegion(Regions.CN_NORTH_1));
 		try{
 			System.out.println("Calling user: "+stsRole.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
-			BasicSessionCredentials bsc14 = util.assumeRole(stsChina, durationSec, CONFIG_EXAMPLE_IAM_ROLE_ARN, "developer");
+			BasicSessionCredentials bsc14 = util.assumeRole(stsChina, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "developer");
 			System.out.println("AK: "+bsc14.getAWSAccessKeyId());
 		}catch(AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -471,7 +456,7 @@ public class Biu {
 		stsFed.setRegion(Region.getRegion(Regions.CN_NORTH_1));
 		System.out.println("Calling user: "+stsFed.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
 		try{
-			BasicSessionCredentials bsc10 = util.assumeRole(stsFed, durationSec, CONFIG_EXAMPLE_IAM_ROLE_ARN, "batman007");
+			BasicSessionCredentials bsc10 = util.assumeRole(stsFed, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "batman007");
 			System.out.println("Temp AK: "+bsc10.getAWSAccessKeyId());
 		}catch (AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -506,29 +491,37 @@ public class Biu {
 		h.title("AssumeRole from Instance Profile");
 		System.out.println("Calling user: EC2 Instance Profile");
 		try{
-			BasicSessionCredentials bsc8 = util.assumeRole(stsIp, 900, CONFIG_EXAMPLE_IAM_ROLE_ARN, "one-ec2-instance");
+			BasicSessionCredentials bsc8 = util.assumeRole(stsIp, 900, Config.EXAMPLE_IAM_ROLE_ARN, "one-ec2-instance");
 			System.out.println("Temp AK: "+bsc8.getAWSAccessKeyId());
 		}catch(AmazonClientException ex){
 			System.out.println(ex.getMessage());
 		}
 	}
 	
-	public void showResource() throws Exception{
+	public void showResourceAll() throws Exception{
 		GeneralUtil.showAllResource();
 	}
 	
-	public void showResourceByProfile(String profile) throws Exception{
+	public void showResource(String profile) throws Exception{
 		h.help(profile,"<profile>");
 		GeneralUtil.showAllResourceInProfile(profile);
 	}
 	
-	public void kinesisProduceRandomRecords(String streamName, String dop, String recordsPerPut, String profile){
+	public void showSqsMessage(String queueName, String profile) throws Exception{
+		h.help(queueName,"<queue-name> <profile>");
+		SQSUtil util = new SQSUtil();
+		AmazonSQS sqs = (AmazonSQS) Clients.getClientByProfile(Clients.SQS, profile);
+		AWSSecurityTokenService sts = (AWSSecurityTokenService) Clients.getClientByProfile(Clients.STS, profile);
+		util.showAllMessageInQueue(sqs, sts.getCallerIdentity(new GetCallerIdentityRequest()).getAccount(), PROFILE_REGIONS.get(profile), queueName, 7);
+	}
+	
+	public void kinesisProduceRandomRecord(String streamName, String dop, String recordsPerPut, String profile){
 		h.help(streamName,"<stream-name> <dop> <records-per-put> <profile>");
 		KinesisUtil util = new KinesisUtil();
 		util.produceRandomRecords(streamName, Integer.parseInt(dop), Integer.parseInt(recordsPerPut), profile);
 	}
 	
-	public void kinesisConsumeRandomRecords(String streamName, String initialPositionInStream, String profile) throws Exception{
+	public void kinesisConsumeRandomRecord(String streamName, String initialPositionInStream, String profile) throws Exception{
 		h.help(streamName,"<stream-name> <initial-position-in-stream: latest|trim_horizon> <profile>");
 		KinesisUtil util = new KinesisUtil();
 		InitialPositionInStream ipis = null;
@@ -586,7 +579,17 @@ public class Biu {
 		this.dropmeAmi(objectPrefixToClean,profile);
 		this.dropmeEmr(objectPrefixToClean,profile);
 		this.dropmeRt(objectPrefixToClean,profile);
+		this.dropmeEni(objectPrefixToClean, profile);
 		System.out.println("Troll RTB");
+	}
+	
+	public void dropmeEni(String prefix, String profile) throws Exception{
+		h.help(prefix,"<object-prefix-to-clean> <profile>");
+		System.out.println("> Drop ENI with tag name prefix "+prefix+"* in "+Biu.PROFILE_REGIONS.get(profile).getName());
+		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, profile);
+		Filter f = new Filter().withName("tag:Name").withValues(prefix+"*");
+		EC2Util util = new EC2Util();
+		util.dropeEniByFilter(ec2, f);
 	}
 	
 	public void dropmeRt(String prefix, String profile) throws Exception{
@@ -897,18 +900,18 @@ public class Biu {
 		util.uploadFileMultipart(s3, new File(filePath), bucketName, key, Integer.parseInt(partCount));
 	}
 	
-	public void uploadFile(String regionPartition, String bucketName, String key, String filePath) throws Exception{
+	public void uploadFile(String regionPartition, String bucketName, String objectKey, String filePath) throws Exception{
 		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path>");
 		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
 		S3Util util = new S3Util();
-		util.uploadFile(s3, new File(filePath), bucketName, key);
+		util.uploadFile(s3, new File(filePath), bucketName, objectKey);
 	}
 	
-	public void uploadFileWithCustomerKey(String regionPartition, String bucketName, String key, String filePath, String customerKeySerDePath) throws Exception{
+	public void uploadFileWithCustomerKey(String regionPartition, String bucketName, String objectKey, String filePath, String customerKeySerDePath) throws Exception{
 		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path> <customerKeySerDePath>");
 		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
 		S3Util util = new S3Util();
-		util.uploadFileWithCustomerEncryptionKey(s3, new File(filePath), bucketName, key, customerKeySerDePath);
+		util.uploadFileWithCustomerEncryptionKey(s3, new File(filePath), bucketName, objectKey, customerKeySerDePath);
 	}
 	
 	public void downloadFile(String regionPartition, String bucketName, String key, String filePath) throws Exception{
@@ -1135,12 +1138,12 @@ public class Biu {
 		String basename = fileLocalPath.substring(fileLocalPath.lastIndexOf("/"));
 		String key = "working-share"+basename;
 		System.out.println("Key: "+key);
-		PutObjectRequest por = new PutObjectRequest(CONFIG_BACKUP_BUCKET,key,new File(fileLocalPath));
+		PutObjectRequest por = new PutObjectRequest(Config.BACKUP_BUCKET,key,new File(fileLocalPath));
 		PutObjectResult pors = s3.putObject(por);
 		String etag = pors.getETag();
 		System.out.println("ETag: "+etag);
 		S3Util s3util = new S3Util();
-		URL url = s3util.getPresignedUrl(CONFIG_BACKUP_BUCKET,key,Integer.valueOf(validDurationInDays)*24,"GET", "beijing");
+		URL url = s3util.getPresignedUrl(Config.BACKUP_BUCKET,key,Integer.valueOf(validDurationInDays)*24,"GET", "beijing");
 		String presignedUrl = url.toString();
 		System.out.println(presignedUrl);
 	}
@@ -1176,21 +1179,22 @@ public class Biu {
 	public void closeBeijingNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "beijing");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, CONFIG_APP_NACL_BEIJING);
-		util.denyAllIngressOnNACL(ec2, CONFIG_DEFAULT_NACL_BEIJING);
+		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_BEIJING);
+		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_BEIJING);
 	}
 	
 	public void closeVirginiaNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "virginia");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, CONFIG_APP_NACL_VIR);
+		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_VIR);
+		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_VIR);
 	}
 	
 	public void closeTokyoNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "tokyo");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, CONFIG_APP_NACL_TOKYO);
-		util.denyAllIngressOnNACL(ec2, CONFIG_DEFAULT_NACL_TOKYO);
+		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_TOKYO);
+		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_TOKYO);
 	}
 	
 	
@@ -1201,24 +1205,25 @@ public class Biu {
 	public void openBeijingNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "beijing");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, CONFIG_APP_NACL_BEIJING);
-		util.removeIngressNo49(ec2, CONFIG_DEFAULT_NACL_BEIJING);
+		util.removeIngressNo49(ec2, Config.APP_NACL_BEIJING);
+		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_BEIJING);
 	}
 	
-	public void openVirNetwork() throws Exception{
+	public void openVirginiaNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "virginia");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, CONFIG_APP_NACL_VIR);
+		util.removeIngressNo49(ec2, Config.APP_NACL_VIR);
+		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_VIR);
 	}
 	
 	public void openTokyoNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "tokyo");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, CONFIG_APP_NACL_TOKYO);
-		util.removeIngressNo49(ec2, CONFIG_DEFAULT_NACL_TOKYO);
+		util.removeIngressNo49(ec2, Config.APP_NACL_TOKYO);
+		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_TOKYO);
 	}
 	
-	public void showAllService() throws IllegalArgumentException, IllegalAccessException{
+	public void showServiceAll() throws IllegalArgumentException, IllegalAccessException{
 		Class<?> clazz = ServiceAbbreviations.class;
 		Field[] fields = clazz.getDeclaredFields();
 		TreeSet<String> set = new TreeSet<String>();
@@ -1365,7 +1370,7 @@ public class Biu {
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByProfile(Clients.ASG, "beijing");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "beijing");
 		if(au.checkNewLaunchConfigAvail(aas, commands[0])){
-			au.commandsToAmiForAsgByName(aas, ec2, CONFIG_BEIJING_EC2_KEYPAIR_NAME, commands[0], CONFIG_BEIJING_DEFAULT_VPC_SUBNET1, CONFIG_BEIJING_DEFAULT_VPC_SUBNET2, CONFIG_BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]),false);
+			au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]),false);
 		}
 		else{
 			System.out.println("Next launch configuration name is occupied, please have a check.");
@@ -1424,8 +1429,6 @@ public class Biu {
 
 	
 	public static void coreV2(String[] args) throws Exception{
-		
-		
 		
 		if(args==null || args.length==0){
 			System.out.println("Usage:");
@@ -1530,7 +1533,9 @@ public class Biu {
 				return;
 			}
 		}
-		System.out.println("options unkown.");
+		
+		Helper.searh(args[0]);
+		
 		return;
 	}
 	
