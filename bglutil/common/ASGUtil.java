@@ -1,11 +1,17 @@
 package bglutil.common;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -146,6 +152,36 @@ public class ASGUtil {
 		}
 	}
 
+	public void commandsToAmiForAsgByName(AmazonAutoScaling aas, AmazonEC2 ec2,
+			String keyName,
+			String asgName, String amiBakerSubnetId, String amiBakerBackupSubnetId,
+			String amiBakerSecurityGroupId,
+			File commandsToAmi, int waitMins, boolean dryRun){
+		//StringBuffer sb = new StringBuffer();
+		ArrayList<String> commands = new ArrayList<String>();
+		commands.add(asgName);
+		commands.add(Integer.toString(waitMins));
+		String line = null;
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(commandsToAmi));
+			line = br.readLine();
+			while(line!=null){
+				line = line.replaceFirst(" *", "");
+				if(!line.startsWith("#")){
+					commands.add("\""+line+"\"");
+				}
+				line = br.readLine();
+			}
+			br.close();
+			this.commandsToAmiForAsgByName(aas, ec2, keyName, asgName, amiBakerSubnetId, amiBakerBackupSubnetId, amiBakerSecurityGroupId,
+					commands.toArray(), waitMins, dryRun);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	/**
 	 * Update (yum -y update) and swap stateless instances in an ASG softly.
 	 * 
@@ -157,7 +193,8 @@ public class ASGUtil {
 			String keyName,
 			String asgName, String amiBakerSubnetId, String amiBakerBackupSubnetId,
 			String amiBakerSecurityGroupId,
-			String[] commandsToAmi, int waitMins, boolean dryRun) {
+			Object[] commandsToAmi, int waitMins, boolean dryRun) {
+		System.out.println(Arrays.toString(commandsToAmi));
 		if(!commandsToAmi[0].equals(asgName) || !commandsToAmi[1].equals(Integer.toString(waitMins))){
 			System.out.println("Parameter commandsToAmi not handled correctly.");
 			return;
@@ -168,32 +205,45 @@ public class ASGUtil {
 				+ "yum -y install perl-libwww-perl\n" 
 				+ "yum -y install httpd\n"
 				+ "chkconfig httpd off\n"
-				+ "service httpd stop\n"
-				+ "yum -y update";
+				+ "service httpd stop";
 		String userdataSuffix =  " && echo \"_SUCCESS\" > /var/www/html/index-test.html && chmod a+r /var/www/html/index-test.html && service httpd restart\n";
 		StringBuffer commandsBuffer = new StringBuffer();
 		StringBuffer cBuffer = new StringBuffer();
 		String c1 = null;
 		boolean commandEnd = false;
 		for(int i=2;i<commandsToAmi.length;i++){
-			//System.out.println(commandsToAmi[i]);
-			if(commandsToAmi[i].startsWith("\"")){
-				cBuffer = new StringBuffer();
-				c1 = commandsToAmi[i].replaceFirst("\"", "");
-				cBuffer.append(c1+" ");
+			if(dryRun){System.out.println("Element: "+commandsToAmi[i]);}
+			if(commandsToAmi[i].toString().startsWith("\"")){
 				commandEnd = false;
-			}
-			else if (commandsToAmi[i].endsWith("\"")){
-				c1 = commandsToAmi[i].replaceAll("\"", "");
+				cBuffer = new StringBuffer();
+				if(commandsToAmi[i].toString().endsWith("\"")){
+					commandEnd = true;
+				}
+				c1 = commandsToAmi[i].toString().replaceAll("\"", "");	
 				cBuffer.append(c1+" ");
-				commandsBuffer.append(" && "+new String(cBuffer));
+				if(commandEnd){
+					commandsBuffer.append(" && "+new String(cBuffer));
+				}
+				if(dryRun && !commandEnd){System.out.println("Command part: "+new String(cBuffer));}
+				if(dryRun && commandEnd){System.out.println("Commands: "+new String(commandsBuffer));}
+			}
+			else if(commandsToAmi[i].toString().endsWith("\"")){
 				commandEnd = true;
+				c1 = commandsToAmi[i].toString().replaceAll("\"", "");	
+				cBuffer.append(c1+" ");
+				if(commandEnd){
+					commandsBuffer.append(" && "+new String(cBuffer));
+				}
+				if(dryRun && !commandEnd){System.out.println("Command part: "+new String(cBuffer));}
+				if(dryRun && commandEnd){System.out.println("Commands: "+new String(commandsBuffer));}
 			}
 			else{
-				c1 = commandsToAmi[i];
+				c1 = commandsToAmi[i].toString();
 				cBuffer.append(c1+" ");
+				if(dryRun && !commandEnd){System.out.println("Command part: "+new String(cBuffer));}
+				if(dryRun && commandEnd){System.out.println("Command: "+new String(commandsBuffer));}
 			}
-			if(c1!=null){c1=null;}
+			c1=null;
 			// commandsBuffer.append(" && "+commandsToAmi[i]); OLD
 		}
 		if(!commandEnd){
@@ -203,6 +253,7 @@ public class ASGUtil {
 		String userdata = userdataPrefix+new String(commandsBuffer)+userdataSuffix;
 		System.out.println(userdata);
 		if(dryRun){
+			System.out.println(new String(commandsBuffer));
 			System.out.println("Dry Run!! Over.");
 			return;
 		}

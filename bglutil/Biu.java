@@ -1364,13 +1364,18 @@ public class Biu {
 	 * @param commands
 	 * @throws Exception
 	 */
-	public void commandsToAmiAsgSoftBeijing(String... commands) throws Exception{
+	public static void commandsToAmiAsgSoftBeijing(String... commands) throws Exception{
 		//h.help(asgName,"<asg-name> <wait-mins-during-swap-members>, <command1, command2, ...>");
 		ASGUtil au = new ASGUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByProfile(Clients.ASG, "beijing");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "beijing");
 		if(au.checkNewLaunchConfigAvail(aas, commands[0])){
-			au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]),false);
+			if(commands[2].startsWith("file://")){
+				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, new File(commands[2].replaceFirst("file://","")), Integer.parseInt(commands[1]),false);
+			}
+			else{
+				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]),false);
+			}
 		}
 		else{
 			System.out.println("Next launch configuration name is occupied, please have a check.");
@@ -1499,10 +1504,10 @@ public class Biu {
 				if(args[0].equals("commandsToAmiAsgSoftBeijing")){
 					String[] parameters = Arrays.copyOfRange(args, 1, args.length);
 					if(parameters[0].equals("-h")){
-						System.out.println("<asg-name> <wait-mins-during-swapping>, \\\"<command1>\\\", \\\"<command2>\\\", \\\"<...>\\\"");
+						System.out.println("<asg-name> <wait-mins-during-swapping> <file:///path-to-script-file> | \\\"<command1>\\\", \\\"<command2>\\\", \\\"<...>\\\"");
 						return;
 					}
-					u.commandsToAmiAsgSoftBeijing(parameters);
+					commandsToAmiAsgSoftBeijing(parameters);
 					return;
 				}
 				// Options filter
