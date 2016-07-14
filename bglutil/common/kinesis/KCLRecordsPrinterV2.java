@@ -22,58 +22,45 @@ public class KCLRecordsPrinterV2 implements IRecordProcessor{
 
 	@Override
 	public void initialize(InitializationInput ii) {
-		// TODO Auto-generated method stub
 		this.shardId = ii.getShardId();
-		System.out.println("Handling shard: "+this.shardId);
-		
+		System.out.println("Initalized to handle shard: "+this.shardId);
 	}
 
 	@Override
-	public void processRecords(ProcessRecordsInput pri) {
-		// TODO Auto-generated method stub
-		for(Record r:pri.getRecords()){
-			System.out.println("Part: "+r.getPartitionKey()+", Seq: "+r.getSequenceNumber()+", "+r.getData());
+	public void processRecords(ProcessRecordsInput input) {
+		for(Record r:input.getRecords()){
+			System.out.println(this.shardId+", PartKey: "+r.getPartitionKey()+", Data:"+r.getData().toString()+", Seq: "+r.getSequenceNumber());
 		}
 		try {
-			pri.getCheckpointer().checkpoint();
+			input.getCheckpointer().checkpoint();
 		} catch (KinesisClientLibDependencyException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InvalidStateException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ThrottlingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ShutdownException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
 	@Override
 	public void shutdown(ShutdownInput si) {
-		// TODO Auto-generated method stub
 		String chk = "chk no";
 		if(si.getShutdownReason().equals(ShutdownReason.TERMINATE)){
 			try {
 				si.getCheckpointer().checkpoint();
 				chk = "chk yes";
 			} catch (KinesisClientLibDependencyException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (InvalidStateException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (ThrottlingException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (ShutdownException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		System.out.println(chk+", Shard#: "+this.shardId+" shutdown with reason: "+si.getShutdownReason().toString());
 	}
-
 }

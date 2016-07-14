@@ -3,7 +3,7 @@ package bglutil.common;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import bglutil.Biu;
+import bglutil.main.Biu;
 
 public class Helper {
 	

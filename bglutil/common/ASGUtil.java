@@ -35,8 +35,10 @@ import com.amazonaws.services.autoscaling.model.TerminateInstanceInAutoScalingGr
 import com.amazonaws.services.autoscaling.model.UpdateAutoScalingGroupRequest;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CreateImageRequest;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
 
 public class ASGUtil {
 	
@@ -156,7 +158,7 @@ public class ASGUtil {
 			String keyName,
 			String asgName, String amiBakerSubnetId, String amiBakerBackupSubnetId,
 			String amiBakerSecurityGroupId,
-			File commandsToAmi, int waitMins, boolean dryRun){
+			File commandsToAmi, int waitMins, String tagForAmiBaker, boolean dryRun){
 		//StringBuffer sb = new StringBuffer();
 		ArrayList<String> commands = new ArrayList<String>();
 		commands.add(asgName);
@@ -174,7 +176,7 @@ public class ASGUtil {
 			}
 			br.close();
 			this.commandsToAmiForAsgByName(aas, ec2, keyName, asgName, amiBakerSubnetId, amiBakerBackupSubnetId, amiBakerSecurityGroupId,
-					commands.toArray(), waitMins, dryRun);
+					commands.toArray(), waitMins, tagForAmiBaker, dryRun);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -193,7 +195,7 @@ public class ASGUtil {
 			String keyName,
 			String asgName, String amiBakerSubnetId, String amiBakerBackupSubnetId,
 			String amiBakerSecurityGroupId,
-			Object[] commandsToAmi, int waitMins, boolean dryRun) {
+			Object[] commandsToAmi, int waitMins, String tagForAmiBaker, boolean dryRun) {
 		System.out.println(Arrays.toString(commandsToAmi));
 		if(!commandsToAmi[0].equals(asgName) || !commandsToAmi[1].equals(Integer.toString(waitMins))){
 			System.out.println("Parameter commandsToAmi not handled correctly.");
@@ -297,6 +299,7 @@ public class ASGUtil {
 						.getReservations().get(0).getReservationId();
 				String publicDnsName = ec2.describeInstances(dir).getReservations()
 						.get(0).getInstances().get(0).getPublicDnsName();
+				ec2.createTags(new CreateTagsRequest().withResources(amiBakerInstanceId).withTags(new Tag().withKey("Name").withValue(tagForAmiBaker)));
 				ArrayList<URL> urls = new ArrayList<URL>();
 				try {
 					urls.add(new URL("http://" + publicDnsName + "/index-test.html"));

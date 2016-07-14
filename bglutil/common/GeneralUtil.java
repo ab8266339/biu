@@ -4,7 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.TreeSet;
 
 import sun.misc.BASE64Encoder;
-import bglutil.Biu;
+import bglutil.main.Biu;
 
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -208,8 +208,8 @@ public class GeneralUtil {
 	}
 
 	public static void showAllResource() throws Exception {
-		for (Regions regions : Biu.ALL_REGIONS) {
-			showAllResourceInProfile(regions.getName());
+		for (String profile : Biu.ALL_PROFILES) {
+			showAllResourceInProfile(profile);
 		}
 		showAllGlobalResource();
 	}

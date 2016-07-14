@@ -4,7 +4,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import bglutil.Biu;
+import bglutil.main.Biu;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.regions.Region;

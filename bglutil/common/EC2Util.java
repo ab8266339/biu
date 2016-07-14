@@ -45,6 +45,7 @@ import com.amazonaws.services.ec2.model.DetachNetworkInterfaceRequest;
 import com.amazonaws.services.ec2.model.DetachVolumeRequest;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
 import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.GroupIdentifier;
 import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
@@ -173,7 +174,7 @@ public class EC2Util {
 		System.out.println("=> Deregisting AMI "+amiId);
 	}
 	
-	public TreeSet<String> getDependentSecurityGroupIds(AmazonEC2 ec2, String securityGroupId){
+	public TreeSet<String> getGroupIdsInSources(AmazonEC2 ec2, String securityGroupId){
 		List<SecurityGroup> sgs = ec2.describeSecurityGroups(new DescribeSecurityGroupsRequest().withGroupIds(securityGroupId)).getSecurityGroups();
 		ArrayList<String> dependentSgIds = new ArrayList<String>();
 		for(SecurityGroup sg:sgs){
@@ -199,8 +200,8 @@ public class EC2Util {
 		return ts;
 	}
 	
-	public TreeSet<String> getReferencingSecurityGroupIds(AmazonEC2 ec2, String securityGroupId){
-		ArrayList<String> referencingSgIds = new ArrayList<String>();
+	public TreeSet<String> getReferencingResourceIds(AmazonEC2 ec2, String securityGroupId){
+		ArrayList<String> referencingResourceIds = new ArrayList<String>();
 		SecurityGroup sg = ec2.describeSecurityGroups(new DescribeSecurityGroupsRequest().withGroupIds(securityGroupId)).getSecurityGroups().get(0);
 		Filter f = new Filter().withName("vpc-id").withValues(sg.getVpcId());
 		//System.out.println(sg.getVpcId());
@@ -209,16 +210,25 @@ public class EC2Util {
 			//System.out.println(vpcSg.getGroupId());
 			if(!(vpcSg.getGroupId().equals(securityGroupId))){
 				//System.out.println(vpcSg.getGroupId());
-				for(String depentId:this.getDependentSecurityGroupIds(ec2, vpcSg.getGroupId())){
+				for(String depentId:this.getGroupIdsInSources(ec2, vpcSg.getGroupId())){
 					//System.out.println(depentId);
 					if(depentId.equals(securityGroupId)){
-						referencingSgIds.add(vpcSg.getGroupId());
+						referencingResourceIds.add(vpcSg.getGroupId());
+					}
+				}
+			}
+		}
+		for(Reservation r:ec2.describeInstances().getReservations()){
+			for(Instance i:r.getInstances()){
+				for(GroupIdentifier gid: i.getSecurityGroups()){
+					if(gid.getGroupId().equals(securityGroupId)){
+						referencingResourceIds.add(i.getInstanceId());
 					}
 				}
 			}
 		}
 		TreeSet<String> ts = new TreeSet<String>();
-		ts.addAll(referencingSgIds);
+		ts.addAll(referencingResourceIds);
 		return ts;
 	}
 	

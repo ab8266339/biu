@@ -151,6 +151,12 @@ public class S3Util {
 	}
 	
 	public void deleteBucketForce(AmazonS3 s3, String bucketName){
+		this.purgeBucket(s3, bucketName);
+		s3.deleteBucket(new DeleteBucketRequest(bucketName));
+    	System.out.println("Bucket deleted.");
+	}
+	
+	public void purgeBucket(AmazonS3 s3, String bucketName){
 		// Suspend versioning. Pity, version suspending cannot be issued by SDK.
 		
 		// Deleting all objects.
@@ -190,10 +196,7 @@ public class S3Util {
     	    DeleteVersionRequest deleteVersionRequest = new DeleteVersionRequest(bucketName,ver.getKey(),ver.getVersionId());
     		s3.deleteVersion(deleteVersionRequest);
     	}
-    	
-    	DeleteBucketRequest dbr = new DeleteBucketRequest(bucketName);
-    	s3.deleteBucket(dbr);
-    	System.out.println("Bucket deleted.");
+    	System.out.println(bucketName+" purged.");
 	}
 	
 	public void clearMultipartTrash(TransferManager tm, String bucketName) {

@@ -8,11 +8,12 @@ import java.util.Random;
 import java.util.UUID;
 
 import bglutil.common.kinesis.KCLRecordsPrinterFactory;
+import bglutil.main.Biu;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorFactory;
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
@@ -49,6 +50,7 @@ public class KinesisUtil {
 	}
 	
 	public void consumeRandomRecordsFromKinesisKCL(String streamName, InitialPositionInStream initialPositionInStream, String profile) throws Exception{
+		System.out.println("Profile: "+profile);
 		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, profile);
 		String appName = streamName+"-app-kcl";
 		DynamoDBUtil ddbUtil = new DynamoDBUtil();
@@ -57,17 +59,22 @@ public class KinesisUtil {
 			Thread.sleep(1000*30);
 		}catch (ResourceNotFoundException ex){
 			System.out.println(appName+" not exist");
-			//ex.printStackTrace();
 		}
 		String workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
-		KinesisClientLibConfiguration kinesisClientLibConfiguration = null;
-		kinesisClientLibConfiguration =
-                new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
-		kinesisClientLibConfiguration.withInitialPositionInStream(initialPositionInStream);
+		System.out.println("Worker named: "+workerId);
+		KinesisClientLibConfiguration kcc = null;
+		kcc = new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
+		
+		kcc.withInitialPositionInStream(initialPositionInStream);
+		kcc.withRegionName(Biu.PROFILE_REGIONS.get(profile).getName());
 		IRecordProcessorFactory recordProcessorFactory = new KCLRecordsPrinterFactory();
 		
-        Worker worker = new Worker(recordProcessorFactory, kinesisClientLibConfiguration);
+        Worker worker = new Worker.Builder()
+        	.recordProcessorFactory(recordProcessorFactory)
+        	.config(kcc)
+        	.build();
         int exitCode = 0;
+        System.out.println("Try to start worker.");
         try {
             worker.run();
             System.out.println("Worker "+workerId+" started.");

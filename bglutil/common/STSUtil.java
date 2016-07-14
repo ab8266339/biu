@@ -23,7 +23,8 @@ import com.amazonaws.services.securitytoken.model.GetFederationTokenRequest;
 import com.amazonaws.services.securitytoken.model.GetFederationTokenResult;
 import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
 import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
-import com.amazonaws.util.json.JSONObject;
+//import com.amazonaws.util.json.JSONObject;
+import com.amazonaws.util.json.Jackson;
 
 public class STSUtil {
 	
@@ -162,7 +163,8 @@ public class STSUtil {
 		BufferedReader bufferReader = new BufferedReader(new
 		InputStreamReader(conn.getInputStream()));
 		String returnContent = bufferReader.readLine();
-		String signinToken = new JSONObject(returnContent).getString("SigninToken");
+		//String signinToken = new JSONObject(returnContent).getString("SigninToken");
+		String signinToken = Jackson.jsonNodeOf(returnContent).get("SigninToken").toString();
 		String signinTokenParameter = "&SigninToken=" + URLEncoder.encode(signinToken,"UTF-8");
 		//System.out.println("SigninToken Parameter: "+signinTokenParameter);
 		// The issuer parameter is optional, but recommended. Use it to direct users
@@ -238,7 +240,8 @@ public class STSUtil {
 		BufferedReader bufferReader = new BufferedReader(new
 		InputStreamReader(conn.getInputStream()));
 		String returnContent = bufferReader.readLine();
-		String signinToken = new JSONObject(returnContent).getString("SigninToken");
+		//String signinToken = new JSONObject(returnContent).getString("SigninToken");
+		String signinToken = Jackson.jsonNodeOf(returnContent).get("SigninToken").toString();
 		String signinTokenParameter = "&SigninToken=" + URLEncoder.encode(signinToken,"UTF-8");
 		//System.out.println("SigninToken Parameter: "+signinTokenParameter);
 		// The issuer parameter is optional, but recommended. Use it to direct users

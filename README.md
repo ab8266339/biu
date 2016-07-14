@@ -4,7 +4,7 @@
 * Setup static final CONFIG parameters in bglutil.Biu before compile.
 * Must setup ~/.aws/credentials with profile name align with region name such as "virginia", "tokyo", "china", "beijing", "global", etc. Go through the source for their usage.
 * Code here is simply feature piling up. 
-* Other required libraries "AWS SDK for Java 1.10.76", "AWS KCL", "Apache Commons Lang"
+* Other required libraries "AWS SDK for Java", "AWS KCL", "Apache Commons Lang", "protobuf", "guava".
 
 # Setup
     1. Add AWS toolkit to Eclipse (if AWS SDK for Java is NOT 1.10.76, download it manually).
@@ -13,5 +13,5 @@
     4. Add AWS KCL library to project build path.
     5. Add Apache Commons Lang library to project build path.
     6. Maybe you need to turn off the Errors for restriction access for compiler.
-    7. Go through the source code of bglutil/Biu.java and provide missing values to certain static fields in bglutil/Config.java.
+    7. Go through the source code of bglutil/main/Biu.java and provide missing values to certain static fields in bglutil/conf/Config.java.
     8. Build, export and run bglutil.Biu.

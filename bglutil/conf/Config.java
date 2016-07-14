@@ -1,4 +1,4 @@
-package bglutil;
+package bglutil.conf;
 
 public class Config {
 	

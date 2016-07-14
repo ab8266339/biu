@@ -1,4 +1,4 @@
-package bglutil;
+package bglutil.main;
 
 public class TestBiu {
 	
@@ -12,6 +12,6 @@ public class TestBiu {
 	public static void main(String[] args) throws Exception{
 		//Biu.coreV2(base64Encode);
 		//Biu.coreV2(base64Decode);
-		//Biu.commandsToAmiAsgSoftBeijing(commandsToAmiAsgSoftBeijingOptions);
+		Biu.commandsToAmiAsgSoftBeijing(commandsToAmiAsgSoftBeijingOptions);
 	}
 }

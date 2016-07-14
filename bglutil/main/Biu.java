@@ -1,4 +1,4 @@
-package bglutil;
+package bglutil.main;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,6 +40,7 @@ import bglutil.common.KinesisUtil;
 import bglutil.common.S3Util;
 import bglutil.common.SQSUtil;
 import bglutil.common.STSUtil;
+import bglutil.conf.Config;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -149,6 +150,7 @@ public class Biu {
 		REGION_NAMES.put("ap-northeast-2", "Seoul");
 		REGION_NAMES.put("ap-southeast-2", "Sydney");
 		REGION_NAMES.put("sa-east-1", "São Paulo");
+		REGION_NAMES.put("us-gov-west-1","US. Gov");
 		
 		SERVICE_PACK_NAMES.put("sts", Clients.STS);
 		SERVICE_PACK_NAMES.put("s3", Clients.S3);
@@ -454,8 +456,8 @@ public class Biu {
 		h.title("AssumeRole after GetFederatedUserToken");
 		AWSSecurityTokenService stsFed = new AWSSecurityTokenServiceClient(bsc3);
 		stsFed.setRegion(Region.getRegion(Regions.CN_NORTH_1));
-		System.out.println("Calling user: "+stsFed.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
 		try{
+			System.out.println("Calling user: "+stsFed.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
 			BasicSessionCredentials bsc10 = util.assumeRole(stsFed, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "batman007");
 			System.out.println("Temp AK: "+bsc10.getAWSAccessKeyId());
 		}catch (AmazonServiceException ex){
@@ -558,8 +560,8 @@ public class Biu {
 	 */
 	public void troll(String objectPrefixToClean, String profile) throws Exception{
 		h.help(objectPrefixToClean,"<object-prefix-to-clean> <profile>");
-		if(!objectPrefixToClean.startsWith("dropme") && !objectPrefixToClean.startsWith("launch-wizard")){
-				System.out.println("<object-prefix> must start with dropme -or- launch-wizard");
+		if(!objectPrefixToClean.startsWith("dropme") && !objectPrefixToClean.startsWith("launch-wizard") && !objectPrefixToClean.startsWith("qlstack")){
+				System.out.println("<object-prefix> must start with dropme -or- launch-wizard -or- qlstack");
 				return;
 		}
 		this.dropmeCfn(objectPrefixToClean, profile);
@@ -866,6 +868,13 @@ public class Biu {
 		}
 	}
 	
+	public void purgeBucket(String regionPartition, String bucketName) throws Exception{
+		h.help(regionPartition,"<region-partition: china|others> <bucket>");
+		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+		S3Util util = new S3Util();
+		util.purgeBucket(s3, bucketName);
+	}
+	
 	public void deleteBucketForce(String regionPartition, String bucketName) throws Exception{
 		h.help(regionPartition,"<region-partition: china|others> <bucket>");
 		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
@@ -887,7 +896,7 @@ public class Biu {
 		util.uploadFileMultipartSizeParallel(regionPartition, new File(filePath), bucketName, key, Integer.parseInt(partSizeInMB), Integer.parseInt(dop));
 	}
 	
-	public void uploadFileMultipartPartParallel(String regionPartition, String bucketName, String key, String filePath, String partCount, String dop) throws Exception{
+	public void uploadFileMultipartCountParallel(String regionPartition, String bucketName, String key, String filePath, String partCount, String dop) throws Exception{
 		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path> <part-count> <degree-of-parallel>");
 		S3Util util = new S3Util();
 		util.uploadFileMultipartParallel(regionPartition, new File(filePath), bucketName, key, Integer.parseInt(partCount), Integer.parseInt(dop));
@@ -1243,7 +1252,7 @@ public class Biu {
 		List<Region> regions = RegionUtils.getRegionsForService(serviceAbb);
 		int i=0;
 		for(Region r:regions){
-			System.out.println(++i+") "+r.getName());
+			System.out.println(++i+") "+r.getName()+" => "+REGION_NAMES.get(r.getName()));
 		}
 	}
 	
@@ -1371,10 +1380,10 @@ public class Biu {
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, "beijing");
 		if(au.checkNewLaunchConfigAvail(aas, commands[0])){
 			if(commands[2].startsWith("file://")){
-				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, new File(commands[2].replaceFirst("file://","")), Integer.parseInt(commands[1]),false);
+				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, new File(commands[2].replaceFirst("file://","")), Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
 			}
 			else{
-				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]),false);
+				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
 			}
 		}
 		else{
@@ -1414,21 +1423,26 @@ public class Biu {
 		}
 	}
 	
-	public void showDependentSg(String sgid, String profile) throws Exception{
-		h.help(sgid,"<security-group-id> <profiles>");
+	public void showSgInSourceBySg(String sgid, String profile) throws Exception{
+		h.help(sgid,"<security-group-id> <profile>");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, profile);
 		EC2Util util = new EC2Util();
-		for(String sid:util.getDependentSecurityGroupIds(ec2, sgid)){
+		for(String sid:util.getGroupIdsInSources(ec2, sgid)){
 			System.out.println(sid+": "+ec2.describeSecurityGroups(new DescribeSecurityGroupsRequest().withGroupIds(sid)).getSecurityGroups().get(0).getGroupName());
 		}
 	}
 	
-	public void showReferencingSg(String sgid, String profile) throws Exception{
-		h.help(sgid,"<security-group-id> <profiles>");
+	public void showSgWhoIsUsingMe(String sgid, String profile) throws Exception{
+		h.help(sgid,"<security-group-id> <profile>");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, profile);
 		EC2Util util = new EC2Util();
-		for(String sid:util.getReferencingSecurityGroupIds(ec2, sgid)){
-			System.out.println(sid+": "+ec2.describeSecurityGroups(new DescribeSecurityGroupsRequest().withGroupIds(sid)).getSecurityGroups().get(0).getGroupName());
+		for(String sid:util.getReferencingResourceIds(ec2, sgid)){
+			if(sid.startsWith("sg-")){
+				System.out.println(sid+": "+ec2.describeSecurityGroups(new DescribeSecurityGroupsRequest().withGroupIds(sid)).getSecurityGroups().get(0).getGroupName());
+			}
+			else{
+				System.out.println(sid);
+			}
 		}
 	}
 
