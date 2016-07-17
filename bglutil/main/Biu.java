@@ -10,12 +10,14 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,7 @@ import bglutil.conf.Config;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.policy.Policy;
@@ -62,7 +65,24 @@ import com.amazonaws.services.cloudformation.model.DescribeStacksRequest;
 import com.amazonaws.services.cloudformation.model.Stack;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
+import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.ItemCollection;
+import com.amazonaws.services.dynamodbv2.document.QueryOutcome;
+import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.document.UpdateItemOutcome;
+import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
+import com.amazonaws.services.dynamodbv2.document.utils.NameMap;
+import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
+import com.amazonaws.services.dynamodbv2.model.Condition;
+import com.amazonaws.services.dynamodbv2.model.QueryRequest;
+import com.amazonaws.services.dynamodbv2.model.QueryResult;
+import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
+import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DeleteRouteTableRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
@@ -89,13 +109,16 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
+import com.amazonaws.services.securitytoken.model.Credentials;
 import com.amazonaws.services.securitytoken.model.GetCallerIdentityRequest;
 import com.amazonaws.services.securitytoken.model.GetCallerIdentityResult;
+import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.DeleteTopicRequest;
 import com.amazonaws.services.sns.model.Topic;
@@ -333,13 +356,68 @@ public class Biu {
 		util.copyBucket(s3, sourceBucketName, destinationBucketName);
 	}
 	
+	public void demoDdbCondUpdate(String expectedValue) throws Exception{
+		String tableName = "hash-table-hash-gsi";
+		System.out.println("Testing on "+tableName);
+		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
+		DynamoDB dynamoDB = new DynamoDB(ddb);
+		UpdateItemSpec updateItemSpec = new UpdateItemSpec()
+		.withPrimaryKey("id","1")
+        .withUpdateExpression("set #name = :valNew")
+        .withConditionExpression("#gid = :valOld")
+        .withNameMap(new NameMap()
+        	.with("#gid", "gid")
+        	.with("#name", "name"))
+        .withValueMap(new ValueMap()
+        	.withString(":valNew", "batman")
+        	.withString(":valOld", expectedValue))
+        .withReturnValues(ReturnValue.ALL_NEW);
+		Table table = dynamoDB.getTable(tableName);
+        UpdateItemOutcome outcome = table.updateItem(updateItemSpec);
+        System.out.println("UpdateItem Outcome:");
+        System.out.println(outcome.getItem());
+	}
+	
+	public void demoDdbQuery() throws Exception{
+		String tableName = "stream-checker";
+		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
+		DynamoDB dynamoDB = new DynamoDB(ddb);
+		QuerySpec querySpec = new QuerySpec()
+		.withKeyConditionExpression("#hashCol = :keyColSearchValue AND #rangeCol >= :rangeColSearchVaule")
+		.withFilterExpression("#ver <> :v")
+		.withProjectionExpression("#target")
+		.withNameMap(new NameMap()
+						.with("#hashCol", "HashKey")
+						.with("#rangeCol", "RangeKey")
+						.with("#ver", "version")
+						.with("#target", "LogicalObject"))
+		.withValueMap(new ValueMap()
+						.withString(":keyColSearchValue", "dropme:SimpleCheckpointer:1")
+						.withString(":rangeColSearchVaule", "shard")
+						.withNumber(":v", new BigDecimal(1)))
+		.withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL);
+		Table table = dynamoDB.getTable(tableName);
+		ItemCollection<QueryOutcome> items = table.query(querySpec);
+		System.out.println("Max Result Size: "+items.getMaxResultSize());
+		System.out.println("Accumulated Scanned Count: "+items.getAccumulatedScannedCount());
+		System.out.println("Accumulated Item Count: "+items.getAccumulatedItemCount());
+		IteratorSupport<Item,QueryOutcome> iter = items.iterator();
+		System.out.println("=> Result:");
+		while(iter.hasNext()){
+			System.out.println(iter.next());
+		}
+		System.out.println("=> End");
+		System.out.println("Accumulated Scanned Count: "+items.getAccumulatedScannedCount());
+		System.out.println("Accumulated Item Count: "+items.getAccumulatedItemCount());
+	}
+	
 	public void demoDefaultKclConfig() throws Exception{
 		KinesisUtil util = new KinesisUtil();
 		KinesisClientLibConfiguration kcc = util.getDefaultKCLConfiguration();
 		System.out.println();
 		System.out.println("Failover Time (ms): "+kcc.getFailoverTimeMillis());
 		System.out.println("Idle Time between Reads (ms): "+kcc.getIdleTimeBetweenReadsInMillis());
-		System.out.println("Intial Lease Table Read Capacity: "+kcc.getInitialLeaseTableReadCapacity());
+		System.out.println("Initial Lease Table Read Capacity: "+kcc.getInitialLeaseTableReadCapacity());
 		System.out.println("Initial Lease Table Write Capacity: "+kcc.getInitialLeaseTableWriteCapacity());
 		System.out.println("Initial Position in Stream: "+kcc.getInitialPositionInStream().toString());
 		System.out.println("Kinesis Endpoint: "+kcc.getKinesisEndpoint());
@@ -567,7 +645,7 @@ public class Biu {
 			System.out.println("Invalid InitialPositionInStream, available values: latest | trim_horizon.");
 			return;
 		}
-		util.consumeRandomRecordsFromKinesisKCL(streamName, ipis, initStyle, profile);
+		util.consumeRandomRecordsByKCL(streamName, ipis, initStyle, profile);
 	}
 	
 	public void showServiceEndpoint(String regionName) throws Exception{
@@ -1146,7 +1224,7 @@ public class Biu {
 		util.listObjectsInBucket(s3, bucketName, keyPrefix);
 	}
 	
-	public void showDefaultClientConfig(){
+	public void demoDefaultSdkClientConfig(){
 		ClientConfiguration cc = new ClientConfiguration();
 		RetryPolicy rp = cc.getRetryPolicy();
 		System.out.println(

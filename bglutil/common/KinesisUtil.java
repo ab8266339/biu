@@ -11,7 +11,13 @@ import bglutil.common.kinesis.KCLRecordsPrinterFactory;
 import bglutil.main.Biu;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
+import com.amazonaws.services.dynamodbv2.model.Condition;
+import com.amazonaws.services.dynamodbv2.model.QueryRequest;
+import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
+import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
@@ -49,7 +55,11 @@ public class KinesisUtil {
 		}
 	}
 	
-	public void consumeRandomRecordsFromKinesisKCL(String streamName, InitialPositionInStream initialPositionInStream, String initialStyle, String profile) throws Exception{
+	public void produceRandomRecordsByKPL(String streamName, int parallelDegree, String profile){
+		
+	}
+	
+	public void consumeRandomRecordsByKCL(String streamName, InitialPositionInStream initialPositionInStream, String initialStyle, String profile) throws Exception{
 		System.out.println("Profile: "+profile);
 		String style = initialStyle.equals("new")?"new":"join";
 		System.out.println("Application worker instance initialization style: "+style);
@@ -71,7 +81,6 @@ public class KinesisUtil {
 		KinesisClientLibConfiguration kcc = new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
 		kcc.withInitialPositionInStream(initialPositionInStream);
 		kcc.withRegionName(Biu.PROFILE_REGIONS.get(profile).getName());
-		
 		
         Worker worker = new Worker.Builder()
         	.recordProcessorFactory(new KCLRecordsPrinterFactory())
@@ -121,7 +130,7 @@ class Producer extends Thread{
 				int payload = 0;
 				for(int i=0;i<this.recordsPerPut;i++){
 					entry = new PutRecordsRequestEntry();
-					payload = r.nextInt(1000);
+					payload = r.nextInt(10000);
 					entry.setData(ByteBuffer.wrap(String.valueOf(payload).getBytes()));
 					payloads[i] = Integer.toString(payload);
 					entry.setPartitionKey(payloads[i]);
