@@ -139,6 +139,7 @@ public class Biu {
 		PROFILE_REGIONS.put("frankfurt", Regions.EU_CENTRAL_1);
 		PROFILE_REGIONS.put("sydney", Regions.AP_SOUTHEAST_2);
 		PROFILE_REGIONS.put("sanpaulo", Regions.SA_EAST_1);
+		PROFILE_REGIONS.put("mumbai", Regions.AP_SOUTH_1);
 		
 		REGION_NAMES.put("cn-north-1", "Beijing");
 		REGION_NAMES.put("us-east-1", "N. Virginia");
@@ -150,8 +151,10 @@ public class Biu {
 		REGION_NAMES.put("ap-northeast-1", "Tokyo");
 		REGION_NAMES.put("ap-northeast-2", "Seoul");
 		REGION_NAMES.put("ap-southeast-2", "Sydney");
+		REGION_NAMES.put("ap-south-1", "Mumbai");
 		REGION_NAMES.put("sa-east-1", "São Paulo");
 		REGION_NAMES.put("us-gov-west-1","US. Gov");
+		
 		
 		SERVICE_PACK_NAMES.put("sts", Clients.STS);
 		SERVICE_PACK_NAMES.put("s3", Clients.S3);
@@ -194,12 +197,15 @@ public class Biu {
 		SERVICE_PACK_NAMES.put("elasticloadbalancing", Clients.ELB);
 		SERVICE_PACK_NAMES.put("ec2", Clients.EC2);
 		SERVICE_PACK_NAMES.put("kms", Clients.KMS);
+		SERVICE_PACK_NAMES.put("iot", Clients.IOT);
+		SERVICE_PACK_NAMES.put("iot.data", Clients.IOTDATA);
+		SERVICE_PACK_NAMES.put("dms", Clients.DMS);
 	}
 	
 	public static final String[] ALL_PROFILES = new String[]{"beijing","virginia","tokyo","seoul","singapore","oregon","california","ireland","frankfurt","sydney","sanpaulo"};
-	public static final Regions[] GLOBAL_REGIONS = new Regions[]{Regions.US_EAST_1,Regions.AP_NORTHEAST_1,Regions.AP_SOUTHEAST_1,Regions.AP_SOUTHEAST_2,Regions.SA_EAST_1,Regions.US_WEST_1,Regions.US_WEST_2,Regions.EU_WEST_1, Regions.EU_CENTRAL_1, Regions.AP_NORTHEAST_2};
+	public static final Regions[] GLOBAL_REGIONS = new Regions[]{Regions.US_EAST_1,Regions.AP_NORTHEAST_1,Regions.AP_SOUTHEAST_1,Regions.AP_SOUTHEAST_2,Regions.AP_SOUTH_1,Regions.SA_EAST_1,Regions.US_WEST_1,Regions.US_WEST_2,Regions.EU_WEST_1, Regions.EU_CENTRAL_1, Regions.AP_NORTHEAST_2};
 	public static final Regions[] CHINA_REGIONS = new Regions[]{Regions.CN_NORTH_1};
-	public static final Regions[] ALL_REGIONS = new Regions[]{Regions.CN_NORTH_1,Regions.US_EAST_1,Regions.AP_NORTHEAST_1,Regions.AP_SOUTHEAST_1,Regions.AP_SOUTHEAST_2,Regions.SA_EAST_1,Regions.US_WEST_1,Regions.US_WEST_2,Regions.EU_WEST_1, Regions.EU_CENTRAL_1, Regions.AP_NORTHEAST_2};
+	public static final Regions[] ALL_REGIONS = new Regions[]{Regions.CN_NORTH_1,Regions.US_EAST_1,Regions.AP_NORTHEAST_1,Regions.AP_SOUTHEAST_1,Regions.AP_SOUTHEAST_2,Regions.AP_SOUTH_1,Regions.SA_EAST_1,Regions.US_WEST_1,Regions.US_WEST_2,Regions.EU_WEST_1, Regions.EU_CENTRAL_1, Regions.AP_NORTHEAST_2};
 	
 	// Oregon, Singapore, for mass scope testing, for example: dropmeAsYourWish series.
 	public static final Regions[] TEST_REGIONS = new Regions[]{Regions.US_WEST_2,Regions.AP_SOUTHEAST_1}; 

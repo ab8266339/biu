@@ -32,6 +32,7 @@ public class Clients {
 	public static final String RDS = "rds.AmazonRDSClient";
 	public static final String ELASTICACHE = "elasticache.AmazonElastiCacheClient";
 	public static final String REDSHIFT = "redshift.AmazonRedshiftClient";
+	public static final String DMS = "databasemigrationservice.AWSDatabaseMigrationServiceClient";
 	
 	// Networking
 	public static final String DX = "directconnect.AmazonDirectConnectClient";
@@ -68,12 +69,15 @@ public class Clients {
 	public static final String CLOUDSEARCH = "cloudsearch.AmazonCloudSearchClient";
 	//public static final String APPSTREAM; NO AppStream?
 	
-	
 	// Mobile Service
 	public static final String SNS = "sns.AmazonSNSClient";
 	public static final String COGNITOID = "cognitoidentity.AmazonCognitoIdentityClient";
 	public static final String COGNITOSYNC = "cognitosync.AmazonCognitoSyncClient";
 	//public static final String MOBILEANALYTICS; NO Mobile Analytics?
+	
+	// IOT
+	public static final String IOT = "iot.AWSIotClient";
+	public static final String IOTDATA = "iotdata.AWSIotDataClient";
 	
 	// Enterprise Application
 	public static final String WORKSPACES = "workspaces.AmazonWorkspacesClient";
