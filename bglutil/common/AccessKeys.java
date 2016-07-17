@@ -15,7 +15,7 @@ public class AccessKeys {
 	 * @return
 	 */
 	public static AWSCredentialsProviderChain getCredentialsByProfile(String profileName){
-		String selectedProfile = profileName==null?"default":profileName;
+		String selectedProfile = profileName=="default"?null:profileName;
 		return new AWSCredentialsProviderChain(
 					new ProfileCredentialsProvider(selectedProfile),
 					new InstanceProfileCredentialsProvider());
