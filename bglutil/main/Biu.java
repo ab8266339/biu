@@ -86,6 +86,7 @@ import com.amazonaws.services.identitymanagement.model.InstanceProfile;
 import com.amazonaws.services.identitymanagement.model.Role;
 import com.amazonaws.services.identitymanagement.model.User;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -326,6 +327,29 @@ public class Biu {
 		util.copyBucket(s3, sourceBucketName, destinationBucketName);
 	}
 	
+	public void demoDefaultKclConfig() throws Exception{
+		KinesisUtil util = new KinesisUtil();
+		KinesisClientLibConfiguration kcc = util.getDefaultKCLConfiguration();
+		System.out.println();
+		System.out.println("Failover Time (ms): "+kcc.getFailoverTimeMillis());
+		System.out.println("Idle Time between Reads (ms): "+kcc.getIdleTimeBetweenReadsInMillis());
+		System.out.println("Intial Lease Table Read Capacity: "+kcc.getInitialLeaseTableReadCapacity());
+		System.out.println("Initial Lease Table Write Capacity: "+kcc.getInitialLeaseTableWriteCapacity());
+		System.out.println("Initial Position in Stream: "+kcc.getInitialPositionInStream().toString());
+		System.out.println("Kinesis Endpoint: "+kcc.getKinesisEndpoint());
+		System.out.println("Max Leases for Worker: "+kcc.getMaxLeasesForWorker());
+		System.out.println("Max Leases to Steal at one Time: "+kcc.getMaxLeasesToStealAtOneTime());
+		System.out.println("Max Records: "+kcc.getMaxRecords());
+		System.out.println("Metrics Buffer Time (ms): "+kcc.getMetricsBufferTimeMillis());
+		System.out.println("Matrics Level Name: "+kcc.getMetricsLevel().getName());
+		System.out.println("Matrics Level Value: "+kcc.getMetricsLevel().getValue());
+		System.out.println("Metrics Max Queue Size: "+kcc.getMetricsMaxQueueSize());
+		System.out.println("Parent Shard Poll Interval (ms): "+kcc.getParentShardPollIntervalMillis());
+		System.out.println("Region Name: "+kcc.getRegionName());
+		System.out.println("Shard Sync Interval (ms): "+kcc.getShardSyncIntervalMillis());
+		System.out.println("Task Backoff Time (ms): "+kcc.getTaskBackoffTimeMillis());
+	}
+	
 	/**
 	 * Generate/Encrypt/Decrypt data key.
 	 * @param keyId
@@ -523,8 +547,8 @@ public class Biu {
 		util.produceRandomRecords(streamName, Integer.parseInt(dop), Integer.parseInt(recordsPerPut), profile);
 	}
 	
-	public void kinesisConsumeRandomRecord(String streamName, String initialPositionInStream, String profile) throws Exception{
-		h.help(streamName,"<stream-name> <initial-position-in-stream: latest|trim_horizon> <profile>");
+	public void kinesisConsumeRandomRecordByKcl(String streamName, String initialPositionInStream, String initStyle, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <initial-position-in-stream: latest|trim_horizon> <initial-style: join|new> <profile>");
 		KinesisUtil util = new KinesisUtil();
 		InitialPositionInStream ipis = null;
 		if(initialPositionInStream.equals("latest")){
@@ -537,7 +561,7 @@ public class Biu {
 			System.out.println("Invalid InitialPositionInStream, available values: latest | trim_horizon.");
 			return;
 		}
-		util.consumeRandomRecordsFromKinesisKCL(streamName, ipis, profile);
+		util.consumeRandomRecordsFromKinesisKCL(streamName, ipis, initStyle, profile);
 	}
 	
 	public void showServiceEndpoint(String regionName) throws Exception{

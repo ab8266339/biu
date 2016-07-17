@@ -13,13 +13,13 @@ import bglutil.main.Biu;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 
 public class KinesisUtil {
 	
@@ -49,28 +49,32 @@ public class KinesisUtil {
 		}
 	}
 	
-	public void consumeRandomRecordsFromKinesisKCL(String streamName, InitialPositionInStream initialPositionInStream, String profile) throws Exception{
+	public void consumeRandomRecordsFromKinesisKCL(String streamName, InitialPositionInStream initialPositionInStream, String initialStyle, String profile) throws Exception{
 		System.out.println("Profile: "+profile);
+		String style = initialStyle.equals("new")?"new":"join";
+		System.out.println("Application worker instance initialization style: "+style);
 		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, profile);
 		String appName = streamName+"-app-kcl";
 		DynamoDBUtil ddbUtil = new DynamoDBUtil();
 		try{
-			ddbUtil.deleteTable(ddb, appName);
-			Thread.sleep(1000*30);
+			String tableName = ddb.describeTable(appName).getTable().getTableName();
+			System.out.println("DDB table name: "+tableName);
+			if(style.equals("new")){
+				ddbUtil.deleteTable(ddb, appName);
+				Thread.sleep(1000*30);
+			}
 		}catch (ResourceNotFoundException ex){
-			System.out.println(appName+" not exist");
+			System.out.println("DDB table "+appName+" not exist");
 		}
 		String workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
 		System.out.println("Worker named: "+workerId);
-		KinesisClientLibConfiguration kcc = null;
-		kcc = new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
-		
+		KinesisClientLibConfiguration kcc = new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
 		kcc.withInitialPositionInStream(initialPositionInStream);
 		kcc.withRegionName(Biu.PROFILE_REGIONS.get(profile).getName());
-		IRecordProcessorFactory recordProcessorFactory = new KCLRecordsPrinterFactory();
+		
 		
         Worker worker = new Worker.Builder()
-        	.recordProcessorFactory(recordProcessorFactory)
+        	.recordProcessorFactory(new KCLRecordsPrinterFactory())
         	.config(kcc)
         	.build();
         int exitCode = 0;
@@ -84,6 +88,10 @@ public class KinesisUtil {
             exitCode = 1;
         }
         System.exit(exitCode);
+	}
+
+	public KinesisClientLibConfiguration getDefaultKCLConfiguration(){
+		return new KinesisClientLibConfiguration("dummy", "dummy", AccessKeys.getCredentialsByProfile("beijing"), "dummy");		
 	}
 }
 
@@ -107,24 +115,31 @@ class Producer extends Thread{
 			PutRecordsRequestEntry entry = null;
 			Random r = new Random(100);
 			PutRecordsResult prrr = null;
+			String[] payloads = new String[this.recordsPerPut];
 			while(true){		
 				putRecordsRequestEntries = new ArrayList<PutRecordsRequestEntry>();
 				int payload = 0;
 				for(int i=0;i<this.recordsPerPut;i++){
 					entry = new PutRecordsRequestEntry();
-					payload = r.nextInt();
+					payload = r.nextInt(1000);
 					entry.setData(ByteBuffer.wrap(String.valueOf(payload).getBytes()));
-					entry.setPartitionKey(Integer.toString(payload));
+					payloads[i] = Integer.toString(payload);
+					entry.setPartitionKey(payloads[i]);
 					putRecordsRequestEntries.add(entry);
 				}
 				prr.setRecords(putRecordsRequestEntries);
 				prrr = k.putRecords(prr);
 				try {
-					Thread.sleep(1*1000);
+					Thread.sleep(1*500);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				System.out.printf("[%s] as %s\n",payload,prrr);
+				//System.out.printf("[%s] as %s\n",payload,prrr);
+				int c=0;
+				for(PutRecordsResultEntry e: prrr.getRecords()){
+					System.out.println("P => "+payloads[c]+" to "+e.getShardId()+" with seg#: "+e.getSequenceNumber());
+					c++;
+				}
 			}
 		}catch(Exception ex){
 			ex.printStackTrace();

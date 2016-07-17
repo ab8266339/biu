@@ -4,7 +4,6 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcess
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 
 public class KCLRecordsPrinterFactory implements IRecordProcessorFactory{
-   
 	
 	@Override
 	public IRecordProcessor createProcessor() {

@@ -29,7 +29,8 @@ public class KCLRecordsPrinterV2 implements IRecordProcessor{
 	@Override
 	public void processRecords(ProcessRecordsInput input) {
 		for(Record r:input.getRecords()){
-			System.out.println(this.shardId+", PartKey: "+r.getPartitionKey()+", Data:"+r.getData().toString()+", Seq: "+r.getSequenceNumber());
+			//ByteBuffer.wrap(String.valueOf(payload).getBytes())
+			System.out.println("C => "+this.shardId+", PartKey: "+r.getPartitionKey()+", Data:"+new String(r.getData().array())+", Seq: "+r.getSequenceNumber());
 		}
 		try {
 			input.getCheckpointer().checkpoint();
@@ -61,6 +62,6 @@ public class KCLRecordsPrinterV2 implements IRecordProcessor{
 				e.printStackTrace();
 			}
 		}
-		System.out.println(chk+", Shard#: "+this.shardId+" shutdown with reason: "+si.getShutdownReason().toString());
+		System.out.println("Record Processor Shuting down: "+chk+", Shard#: "+this.shardId+" shutdown with reason: "+si.getShutdownReason().toString());
 	}
 }
