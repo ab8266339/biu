@@ -1,5 +1,7 @@
 package bglutil.common.kinesis;
 
+import java.io.UnsupportedEncodingException;
+
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.InvalidStateException;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.KinesisClientLibDependencyException;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.ShutdownException;
@@ -19,6 +21,7 @@ import com.amazonaws.services.kinesis.model.Record;
 public class KCLRecordsPrinterV2 implements IRecordProcessor{
 	
 	String shardId;
+	String data;
 
 	@Override
 	public void initialize(InitializationInput ii) {
@@ -28,9 +31,15 @@ public class KCLRecordsPrinterV2 implements IRecordProcessor{
 
 	@Override
 	public void processRecords(ProcessRecordsInput input) {
-		for(Record r:input.getRecords()){
-			//ByteBuffer.wrap(String.valueOf(payload).getBytes())
-			System.out.println("C => "+this.shardId+", PartKey: "+r.getPartitionKey()+", Data:"+new String(r.getData().array())+", Seq: "+r.getSequenceNumber());
+		try {
+			for(Record r:input.getRecords()){
+				//ByteBuffer.wrap(String.valueOf(payload).getBytes())
+				data = new String(r.getData().array(),"UTF-8");
+				System.out.println("C => "+this.shardId+", PartKey: "+r.getPartitionKey()+", Data:"+data+", Seq: "+r.getSequenceNumber());
+			}
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		try {
 			input.getCheckpointer().checkpoint();

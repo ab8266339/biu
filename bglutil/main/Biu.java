@@ -84,15 +84,29 @@ import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.AttachVolumeRequest;
+import com.amazonaws.services.ec2.model.AttachVolumeResult;
+import com.amazonaws.services.ec2.model.CreateVolumeRequest;
+import com.amazonaws.services.ec2.model.CreateVolumeResult;
 import com.amazonaws.services.ec2.model.DeleteRouteTableRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeRouteTablesRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RouteTable;
+import com.amazonaws.services.ec2.model.Volume;
+import com.amazonaws.services.ec2.model.VolumeState;
+import com.amazonaws.services.ec2.model.VolumeType;
 import com.amazonaws.services.elasticache.AmazonElastiCache;
 import com.amazonaws.services.elasticache.model.CacheCluster;
 import com.amazonaws.services.elasticloadbalancing.AmazonElasticLoadBalancing;
@@ -107,6 +121,7 @@ import com.amazonaws.services.identitymanagement.model.Role;
 import com.amazonaws.services.identitymanagement.model.User;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -354,6 +369,29 @@ public class Biu {
 		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
 		S3Util util = new S3Util();
 		util.copyBucket(s3, sourceBucketName, destinationBucketName);
+	}
+	
+	public void demoDefaultKplConfig(){
+		KinesisProducerConfiguration config = new KinesisProducerConfiguration();
+		System.out.println();
+		System.out.println("Aggregation Max Count: "+config.getAggregationMaxCount());
+		System.out.println("Aggregation Max Size: "+config.getAggregationMaxSize());
+		System.out.println("Collection Max Count: "+config.getCollectionMaxCount());
+		System.out.println("Collection Max Size: "+config.getCollectionMaxSize());
+		System.out.println("Log Level: "+config.getLogLevel());
+		System.out.println("Max Connections: "+config.getMaxConnections());
+		System.out.println("Metrics Granularity: "+config.getMetricsGranularity());
+		System.out.println("Metrics Level: "+config.getMetricsLevel());
+		System.out.println("Metrics Namespace: "+config.getMetricsNamespace());
+		System.out.println("Metrics Upload Delay: "+config.getMetricsUploadDelay());
+		System.out.println("Min Connections: "+config.getMinConnections());
+		System.out.println("Port: "+config.getPort());
+		System.out.println("Rate Limit: "+config.getRateLimit());
+		System.out.println("Record Max Buffered Time: "+config.getRecordMaxBufferedTime());
+		System.out.println("Record TTL: "+config.getRecordTtl());
+		System.out.println("Region: "+config.getRegion());
+		System.out.println("Request Timeout: "+config.getRequestTimeout());
+		System.out.println("Temp Directory: "+config.getTempDirectory());
 	}
 	
 	public void demoDdbCondUpdate(String expectedValue) throws Exception{
@@ -629,6 +667,12 @@ public class Biu {
 		h.help(streamName,"<stream-name> <dop> <records-per-put> <profile>");
 		KinesisUtil util = new KinesisUtil();
 		util.produceRandomRecords(streamName, Integer.parseInt(dop), Integer.parseInt(recordsPerPut), profile);
+	}
+	
+	public void kinesisProduceRandomUserRecordByKpl(String streamName, String connections, String userRecordsToAggregate, String recordsPerPut, String profile, String tempDir){
+		h.help(streamName,"<stream-name> <connections> <user-records-to-aggregate> <records-per-put> <profile> <temp-dir>");
+		KinesisUtil util = new KinesisUtil();
+		util.produceRandomRecordsByKPL(streamName, Integer.parseInt(connections), Integer.parseInt(userRecordsToAggregate), Integer.parseInt(recordsPerPut), profile, tempDir);
 	}
 	
 	public void kinesisConsumeRandomRecordByKcl(String streamName, String initialPositionInStream, String initStyle, String profile) throws Exception{
@@ -1098,30 +1142,6 @@ public class Biu {
 		util.updateItemByPkHashString(ddb, tableName, hashName, hashValue, expandedUpdateExpression);
 	}
 	
-	/* Should use an application for demo.
-	private void putItemConditionalToDdb(String regionName, String tableName, String hashName, String hashValue, String rangeName, String rangeValue, String conditionExpression) throws Exception{
-		h.help(regionName,"*<region> <table-name> <hash-pk-name> <hash-pk-value> <range-pk-name> <range-pk-value> <condition-expression>");
-		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClient(Clients.DDB, Regions.fromName(regionName));
-		DynamoDBUtil util = new DynamoDBUtil();
-		HashMap<String,AttributeValue> item = new HashMap<String,AttributeValue>();
-		item.put(hashName,new AttributeValue().withS(hashValue));
-		item.put(rangeName,new AttributeValue().withS(rangeValue));
-		HashMap<String,String> expressionAttributeNames = new HashMap<String,String>();
-		expressionAttributeNames.put("#n","name");
-		util.putItemConditional(ddb, tableName, item, expressionAttributeNames,conditionExpression);
-	}*/
-	
-	/* Should use an application for demo.
-	private void putDocumentItemToDdb(String regionName, String tableName, String hashName, String hashValue, String rangeName, String rangeValue) throws Exception{
-		h.help(regionName,"*<region> <table-name> <hash-pk-name> <hash-pk-value> <range-pk-name> <range-pk-value>");
-		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClient(Clients.DDB, Regions.fromName(regionName));
-		DynamoDBUtil util = new DynamoDBUtil();
-		Item item = new Item().withPrimaryKey(hashName, hashValue, rangeName, rangeValue)
-								.withString("attr1", "value1")
-								.withInt("attr2", 10);
-		util.putDocumentItem(ddb, tableName, item);
-	}*/
-	
 	public void ddbScanItemByFilterAsync(String tableName, String filterName, String filterValue, String profile) throws Exception{
 		h.help(tableName,"<table-name> <filter-name> <filter-value> <profile>");
 		AmazonDynamoDBAsync ddb = (AmazonDynamoDBAsync) Clients.getClientByProfile(Clients.DDBAsync, "profile");
@@ -1222,6 +1242,63 @@ public class Biu {
 			keyPrefix=null;
 		}
 		util.listObjectsInBucket(s3, bucketName, keyPrefix);
+	}
+	
+	public void addGp2EbsToEc2(String ec2InstanceId, String size, String device, String profile) throws Exception{
+		h.help(ec2InstanceId,"<ec2-instance-id> <vol-size-in-gb> <device> <profile>");
+		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByProfile(Clients.EC2, profile);
+		DescribeInstancesRequest dir = new DescribeInstancesRequest();
+		ArrayList<String> ids = new ArrayList<String>(); ids.add(ec2InstanceId);
+		dir.setInstanceIds(ids);
+		DescribeInstancesResult dirt = ec2.describeInstances(dir);
+		List<Reservation> reservations = dirt.getReservations();
+		String subnetId = null;
+		String az = null;
+		if(reservations.size()>0){
+			subnetId = reservations.get(0).getInstances().get(0).getSubnetId();
+			System.out.println("Instance subnet-id: "+subnetId);
+			DescribeSubnetsRequest dsr = new DescribeSubnetsRequest()
+											.withSubnetIds(subnetId);
+			DescribeSubnetsResult dsrt = ec2.describeSubnets(dsr);
+			az = dsrt.getSubnets().get(0).getAvailabilityZone();
+			System.out.println("Instance AZ: "+az);
+		}
+		CreateVolumeRequest cvr = new CreateVolumeRequest()
+										.withAvailabilityZone(az)
+										.withVolumeType(VolumeType.Gp2)
+										.withSize(Integer.parseInt(size));
+		
+		long startTime = System.currentTimeMillis();
+		CreateVolumeResult cvrt = ec2.createVolume(cvr);
+		Volume ebs = cvrt.getVolume();
+		String volId = ebs.getVolumeId();
+		String volAz = ebs.getAvailabilityZone();
+		System.out.println("New volume-id: "+volId);
+		System.out.println("New volume-zone: "+volAz);
+		AttachVolumeRequest avr = new AttachVolumeRequest()
+									.withInstanceId(ec2InstanceId)
+									.withVolumeId(volId)
+									.withDevice(device);
+		String state = null;
+		DescribeVolumesRequest dvr = new DescribeVolumesRequest().withVolumeIds(volId);
+		int c = 1;
+		while(true){
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException ex) {
+				ex.printStackTrace();
+			}
+			state = ec2.describeVolumes(dvr).getVolumes().get(0).getState();
+			System.out.println(c+++" "+state);
+			if(state.equals(VolumeState.Available.toString())){
+				break;
+			}
+		}
+		AttachVolumeResult avrt = ec2.attachVolume(avr);
+		long ela = System.currentTimeMillis() - startTime;
+		System.out.println("Elapsed: "+ela+" (ms)");
+		String dev = avrt.getAttachment().getDevice();
+		System.out.println("Attach to: "+dev);
 	}
 	
 	public void demoDefaultSdkClientConfig(){
