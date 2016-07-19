@@ -1,6 +1,7 @@
 package bglutil.common;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -22,10 +23,13 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
+import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
+import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.SplitShardRequest;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
@@ -37,7 +41,41 @@ public class KinesisUtil {
 			System.out.println("kinesis: "+streamName);
 		}
 	}
-
+	
+	public void splitShardInHalf(AmazonKinesis k, String streamName, String shardToSplit){
+		SplitShardRequest ssr = new SplitShardRequest()
+												.withStreamName(streamName)
+												.withShardToSplit(shardToSplit);
+		DescribeStreamRequest dsr = new DescribeStreamRequest()
+												.withStreamName(streamName);
+		List<Shard> shards = k.describeStream(dsr).getStreamDescription().getShards();
+		System.out.println("=> before:");
+		boolean found = false;
+		for(Shard s:shards){
+			System.out.println(s.getShardId()+": "+s.getHashKeyRange().getStartingHashKey()+","+s.getHashKeyRange().getEndingHashKey());
+			if(s.getShardId().equals(shardToSplit)){
+				found = true;
+				System.out.println("Splitting "+s.getShardId());
+				BigInteger startHashKey = new BigInteger(s.getHashKeyRange().getStartingHashKey());
+				BigInteger endHashKey = new BigInteger(s.getHashKeyRange().getEndingHashKey());
+				String newStartingHashKey  = startHashKey.add(endHashKey).divide(new BigInteger("2")).toString();
+				ssr.setNewStartingHashKey(newStartingHashKey);
+				k.splitShard(ssr);
+				break;
+			}
+		}
+		if(found){
+		try {
+			Thread.sleep(30*1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		}
+		else{
+			System.out.println(shardToSplit+" not found.");
+		}
+	}
+	
 	/**
 	 * For testing, calling Producer.
 	 * @param streamName

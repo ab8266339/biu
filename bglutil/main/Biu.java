@@ -119,6 +119,7 @@ import com.amazonaws.services.identitymanagement.model.Group;
 import com.amazonaws.services.identitymanagement.model.InstanceProfile;
 import com.amazonaws.services.identitymanagement.model.Role;
 import com.amazonaws.services.identitymanagement.model.User;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -394,10 +395,15 @@ public class Biu {
 		System.out.println("Temp Directory: "+config.getTempDirectory());
 	}
 	
-	public void demoDdbCondUpdate(String expectedValue) throws Exception{
-		String tableName = "hash-table-hash-gsi";
-		System.out.println("Testing on "+tableName);
+	public void demoDdbCondUpdate(String targetValue, String expectedValue) throws Exception{
+		h.help(expectedValue,"<targetValue> <expected-value>");
+		String pseduoSQL = "\nupdate hash-table-hash-gsi\n  set name="+targetValue+"\n  where id=1\n  expecting gid="+expectedValue;
+		System.out.println(pseduoSQL);
 		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
+		DynamoDBUtil util = new DynamoDBUtil();
+		System.out.println("\n Actual item:");
+		util.getItemByPkHashString(ddb, "hash-table-hash-gsi", "id", "1", false);
+		System.out.println();
 		DynamoDB dynamoDB = new DynamoDB(ddb);
 		UpdateItemSpec updateItemSpec = new UpdateItemSpec()
 		.withPrimaryKey("id","1")
@@ -407,10 +413,10 @@ public class Biu {
         	.with("#gid", "gid")
         	.with("#name", "name"))
         .withValueMap(new ValueMap()
-        	.withString(":valNew", "batman")
+        	.withString(":valNew", targetValue)
         	.withString(":valOld", expectedValue))
         .withReturnValues(ReturnValue.ALL_NEW);
-		Table table = dynamoDB.getTable(tableName);
+		Table table = dynamoDB.getTable("hash-table-hash-gsi");
         UpdateItemOutcome outcome = table.updateItem(updateItemSpec);
         System.out.println("UpdateItem Outcome:");
         System.out.println(outcome.getItem());
@@ -661,6 +667,13 @@ public class Biu {
 		AmazonSQS sqs = (AmazonSQS) Clients.getClientByProfile(Clients.SQS, profile);
 		AWSSecurityTokenService sts = (AWSSecurityTokenService) Clients.getClientByProfile(Clients.STS, profile);
 		util.showAllMessageInQueue(sqs, sts.getCallerIdentity(new GetCallerIdentityRequest()).getAccount(), PROFILE_REGIONS.get(profile), queueName, 7);
+	}
+	
+	public void kinesisSplitShardInHalf(String streamName, String shardId, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <shard-id> <profile>");
+		KinesisUtil util = new KinesisUtil();
+		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
+		util.splitShardInHalf(k, streamName, shardId);
 	}
 	
 	public void kinesisProduceRandomRecord(String streamName, String dop, String recordsPerPut, String profile){
