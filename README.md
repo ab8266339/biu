@@ -1,5 +1,6 @@
 # Biu!
-* Just for fun and feature demo, no support available.
+* Just for fun and feature demo.
+* No support available, do NOT use it in production.
 * Main class bglutil.main.Biu
 * Setup static final CONFIG parameters in bglutil.conf.Config before compile.
 * Must setup ~/.aws/credentials with profile name align with region name such as "virginia", "tokyo", "china", "beijing", "global", etc. Go through the source for their usage.
