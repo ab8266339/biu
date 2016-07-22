@@ -1,6 +1,7 @@
 package bglutil.common;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -8,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -24,6 +27,7 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+import com.amazonaws.services.kinesis.model.MergeShardsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
@@ -42,6 +46,83 @@ public class KinesisUtil {
 		}
 	}
 	
+	public void printShardInStream(AmazonKinesis k, String streamName){
+		ArrayList<String> parentShardIds = new ArrayList<String>();
+		TreeMap<BigDecimal,Shard> openShards = new TreeMap<BigDecimal,Shard>();
+		for (Shard shard:k.describeStream(streamName).getStreamDescription().getShards()){
+			if(shard.getParentShardId()!=null){
+				parentShardIds.add(shard.getParentShardId());
+			}
+			if(shard.getAdjacentParentShardId()!=null){
+				parentShardIds.add(shard.getAdjacentParentShardId());
+			}
+		}
+		System.out.println();
+		for (Shard shard:k.describeStream(streamName).getStreamDescription().getShards()){
+			if(parentShardIds.contains(shard.getShardId())){
+				System.out.println("Closed: "+shard.getShardId()+"\n");
+			}
+			else{
+				openShards.put(new BigDecimal(shard.getHashKeyRange().getStartingHashKey()),shard);
+			}
+		}
+		for(BigDecimal startingHashKey:openShards.keySet()){
+			System.out.println("Open: "+openShards.get(startingHashKey).getShardId()+": \n\tsHash:"+startingHashKey+"\n\teHash:"+openShards.get(startingHashKey).getHashKeyRange().getEndingHashKey()+"\n");
+		}
+	}
+	
+	private TreeMap<BigDecimal,Shard> getOpenShards(AmazonKinesis k, String streamName){
+		ArrayList<String> parentShardIds = new ArrayList<String>();
+		TreeMap<BigDecimal,Shard> openShards = new TreeMap<BigDecimal,Shard>();
+		for (Shard shard:k.describeStream(streamName).getStreamDescription().getShards()){
+			if(shard.getParentShardId()!=null){
+				parentShardIds.add(shard.getParentShardId());
+			}
+			if(shard.getAdjacentParentShardId()!=null){
+				parentShardIds.add(shard.getAdjacentParentShardId());
+			}
+		}
+		for (Shard shard:k.describeStream(streamName).getStreamDescription().getShards()){
+			if(!parentShardIds.contains(shard.getShardId())){
+				openShards.put(new BigDecimal(shard.getHashKeyRange().getStartingHashKey()),shard);
+			}
+		}
+		return openShards;	
+	}
+	
+	public void mergeShards(AmazonKinesis k, String streamName, String shard1, String shard2){
+		k.mergeShards(new MergeShardsRequest()
+						.withStreamName(streamName)
+						.withShardToMerge(shard1).withAdjacentShardToMerge(shard2));
+	}
+	
+	public void streamCollapse(AmazonKinesis k, String streamName){
+		TreeMap<BigDecimal,Shard> openShards = this.getOpenShards(k, streamName);
+		if(openShards.size() % 2 !=0){
+			System.out.println("openShards.size() % 2 !=0, operations aborted.");
+		}
+		else{
+			int c=0;
+			String[] shards = new String[2];
+			for(BigDecimal startingHashKey:openShards.keySet()){
+				shards[c] = openShards.get(startingHashKey).getShardId();
+				if(c==1){
+					System.out.println("Merging "+shards[0]+" and "+shards[1]);
+					this.mergeShards(k, streamName, shards[0], shards[1]);	
+				}
+				c++;
+				c=(c==2)?0:c;
+			}
+		}
+	}
+	
+	public void streamFission(AmazonKinesis k, String streamName){
+		TreeMap<BigDecimal,Shard> openShards = this.getOpenShards(k, streamName);
+		for(BigDecimal startingHashKey:openShards.keySet()){
+			this.splitShardInHalf(k, streamName, openShards.get(startingHashKey).getShardId());
+		}
+	}
+	
 	public void splitShardInHalf(AmazonKinesis k, String streamName, String shardToSplit){
 		SplitShardRequest ssr = new SplitShardRequest()
 												.withStreamName(streamName)
@@ -52,9 +133,9 @@ public class KinesisUtil {
 		System.out.println("=> before:");
 		boolean found = false;
 		for(Shard s:shards){
-			System.out.println(s.getShardId()+": "+s.getHashKeyRange().getStartingHashKey()+","+s.getHashKeyRange().getEndingHashKey());
 			if(s.getShardId().equals(shardToSplit)){
 				found = true;
+				System.out.println(s.getShardId()+": "+s.getHashKeyRange().getStartingHashKey()+","+s.getHashKeyRange().getEndingHashKey());
 				System.out.println("Splitting "+s.getShardId());
 				BigInteger startHashKey = new BigInteger(s.getHashKeyRange().getStartingHashKey());
 				BigInteger endHashKey = new BigInteger(s.getHashKeyRange().getEndingHashKey());

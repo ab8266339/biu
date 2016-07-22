@@ -359,15 +359,15 @@ public class Biu {
 	}
 	
 	/**
-	 * Copy source bucket to target bucket within ideology region.
+	 * Copy source bucket to target bucket within region.
 	 * @param regionPartition
 	 * @param sourceBucketName
 	 * @param destinationBucketName
 	 * @throws Exception
 	 */
-	public void copyBucket(String regionPartition, String sourceBucketName, String destinationBucketName) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <source-bucket> <destination-bucket>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void copyBucket(String sourceBucketName, String destinationBucketName, String profile) throws Exception{
+		h.help(sourceBucketName,"<source-bucket> <destination-bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.copyBucket(s3, sourceBucketName, destinationBucketName);
 	}
@@ -395,8 +395,13 @@ public class Biu {
 		System.out.println("Temp Directory: "+config.getTempDirectory());
 	}
 	
+	//TODO a demo to show whether pagination conflicts with consistent read.
+	public void demoDdbPaginationAndConsistentRead() throws Exception{
+		
+	}
+	
 	public void demoDdbCondUpdate(String targetValue, String expectedValue) throws Exception{
-		h.help(expectedValue,"<targetValue> <expected-value>");
+		h.help(targetValue,"<targetValue> <expected-value>");
 		String pseduoSQL = "\nupdate hash-table-hash-gsi\n  set name="+targetValue+"\n  where id=1\n  expecting gid="+expectedValue;
 		System.out.println(pseduoSQL);
 		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
@@ -424,7 +429,7 @@ public class Biu {
 	
 	public void demoDdbQuery() throws Exception{
 		String tableName = "stream-checker";
-		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
+		AmazonDynamoDB ddb =  (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, "beijing");
 		DynamoDB dynamoDB = new DynamoDB(ddb);
 		QuerySpec querySpec = new QuerySpec()
 		.withKeyConditionExpression("#hashCol = :keyColSearchValue AND #rangeCol >= :rangeColSearchVaule")
@@ -669,11 +674,39 @@ public class Biu {
 		util.showAllMessageInQueue(sqs, sts.getCallerIdentity(new GetCallerIdentityRequest()).getAccount(), PROFILE_REGIONS.get(profile), queueName, 7);
 	}
 	
+	public void kinesisShowShard(String streamName, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <profile>");
+		KinesisUtil util = new KinesisUtil();
+		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
+		util.printShardInStream(k, streamName);
+	}
+	
 	public void kinesisSplitShardInHalf(String streamName, String shardId, String profile) throws Exception{
 		h.help(streamName,"<stream-name> <shard-id> <profile>");
 		KinesisUtil util = new KinesisUtil();
 		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
 		util.splitShardInHalf(k, streamName, shardId);
+	}
+	
+	public void kinesisStreamFission(String streamName, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <profile>");
+		KinesisUtil util = new KinesisUtil();
+		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
+		util.streamFission(k, streamName);
+	}
+	
+	public void kinesisStreamCollapse(String streamName, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <profile>");
+		KinesisUtil util = new KinesisUtil();
+		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
+		util.streamCollapse(k, streamName);
+	}
+	
+	public void kinesisMergeShard(String streamName, String shardId1, String shardId2, String profile) throws Exception{
+		h.help(streamName,"<stream-name> <shard-id1> <shard-id2> <profile>");
+		KinesisUtil util = new KinesisUtil();
+		AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, profile);
+		util.mergeShards(k, streamName, shardId1, shardId2);
 	}
 	
 	public void kinesisProduceRandomRecord(String streamName, String dop, String recordsPerPut, String profile){
@@ -1033,23 +1066,23 @@ public class Biu {
 		}
 	}
 	
-	public void purgeBucket(String regionPartition, String bucketName) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void purgeBucket(String bucketName, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.purgeBucket(s3, bucketName);
 	}
 	
-	public void deleteBucketForce(String regionPartition, String bucketName) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void deleteBucketForce(String bucketName, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.deleteBucketForce(s3, bucketName);
 	}
 	
-	public void clearMultipartUploadTrash(String regionPartition, String bucketName) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void clearMultipartUploadTrash(String bucketName, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		TransferManager tm = new TransferManager(s3); 
 		S3Util util = new S3Util();
 		util.clearMultipartTrash(tm, bucketName);
@@ -1067,37 +1100,37 @@ public class Biu {
 		util.uploadFileMultipartParallel(regionPartition, new File(filePath), bucketName, key, Integer.parseInt(partCount), Integer.parseInt(dop));
 	}
 	
-	public void uploadFileMultipart(String regionPartition, String bucketName, String key, String filePath, String partCount) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path> <part-count>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void uploadFileMultipart(String bucketName, String key, String filePath, String partCount, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <key> <local-file-path> <part-count> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.uploadFileMultipart(s3, new File(filePath), bucketName, key, Integer.parseInt(partCount));
 	}
 	
-	public void uploadFile(String regionPartition, String bucketName, String objectKey, String filePath) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void uploadFile(String bucketName, String objectKey, String filePath, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <key> <local-file-path> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.uploadFile(s3, new File(filePath), bucketName, objectKey);
 	}
 	
-	public void uploadFileWithCustomerKey(String regionPartition, String bucketName, String objectKey, String filePath, String customerKeySerDePath) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path> <customerKeySerDePath>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void uploadFileWithCustomerKey(String bucketName, String objectKey, String filePath, String customerKeySerDePath, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <key> <local-file-path> <customerKeySerDePath> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.uploadFileWithCustomerEncryptionKey(s3, new File(filePath), bucketName, objectKey, customerKeySerDePath);
 	}
 	
-	public void downloadFile(String regionPartition, String bucketName, String key, String filePath) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void downloadFile(String bucketName, String key, String filePath, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <key> <local-file-path> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.downloadFile(s3, bucketName, key, new File(filePath));
 	}
 	
-	public void downloadFileWithCustomerKey(String regionPartition, String bucketName, String key, String filePath, String customerKeySerDePath) throws Exception{
-		h.help(regionPartition,"<region-partition: china|others> <bucket> <key> <local-file-path> <customerKeySerDePath>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void downloadFileWithCustomerKey(String bucketName, String key, String filePath, String customerKeySerDePath, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <key> <local-file-path> <customerKeySerDePath>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.downloadFileWithCustomerEncryptionKey(s3, bucketName, key, new File(filePath), customerKeySerDePath);
 	}
@@ -1247,9 +1280,9 @@ public class Biu {
 		util.deleteItemByPkString(ddb, tableName, pk);		
 	}
 	
-	public void showObjectInBucket(String regionPartition, String bucketName, String keyPrefix) throws Exception{	
-		h.help(regionPartition,"<region-partition: china|orthers> <bucket> <key-prefix>");
-		AmazonS3 s3 = (AmazonS3) Clients.getIdeologyClient(Clients.S3, regionPartition);
+	public void showObjectInBucket(String bucketName, String keyPrefix, String profile) throws Exception{	
+		h.help(bucketName,"<bucket> <key-prefix> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		if(keyPrefix.equals("null")){
 			keyPrefix=null;
@@ -1693,7 +1726,7 @@ public class Biu {
 		}
 		for(Method m:methods){
 			if (m.getName().equals(args[0])){
-				System.out.println(m.getName()+" :: "+args[0]);
+				//System.out.println(m.getName()+" :: "+args[0]);
 				// Pass through #1: putItemToDdb, #2: deleteItemFromDdb
 				if(args[0].equals("ddbDeleteItemString")){
 					String[] parameters = Arrays.copyOfRange(args, 1, args.length);

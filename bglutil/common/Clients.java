@@ -112,22 +112,7 @@ public class Clients {
 		return c;
 	}
 
-	/**
-	 * This method is for a simple style usage to identify China and not China is enough.
-	 * @param service
-	 * @param ideology
-	 * @return The Client
-	 * @throws Exception
-	 */
-	public static Object getIdeologyClient(String service, String ideology) throws Exception{
-		if (ideology.equals("china")){
-			return Clients.getClientByProfile(service, "beijing");
-		}
-		else{
-			return Clients.getClientByProfile(service, "global");
-		}
-	}
-	
+
 	public static boolean isChinaRegion(Regions regions){
 		for(Regions r: Biu.CHINA_REGIONS){
 			if(r.equals(regions)){
