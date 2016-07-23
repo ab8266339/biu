@@ -170,9 +170,8 @@ public class S3Util {
     	    System.out.println("Deleting "+obj.getKey());
     	}
     	if(keys.size()>0){
-    		DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(bucketName);
-    		deleteObjectsRequest.withKeys(keys);
-    		s3.deleteObjects(deleteObjectsRequest);
+    		DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(bucketName).withKeys(keys);
+			s3.deleteObjects(deleteObjectsRequest);
     	}
     	while(ol.isTruncated()){
     		req.setMarker(ol.getNextMarker());
@@ -182,9 +181,8 @@ public class S3Util {
         	    System.out.println("Deleting "+obj.getKey());
         	}
         	if(keys.size()>0){
-        		DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(bucketName);
-        		deleteObjectsRequest.withKeys(keys);
-        		s3.deleteObjects(deleteObjectsRequest);
+        		DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(bucketName).withKeys(keys);
+				s3.deleteObjects(deleteObjectsRequest);
         	}
     	}
     	// Deleting all versions.

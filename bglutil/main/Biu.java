@@ -126,6 +126,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -1070,13 +1071,22 @@ public class Biu {
 		h.help(bucketName,"<bucket> <profile>");
 		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
-		util.purgeBucket(s3, bucketName);
+		try{
+			util.purgeBucket(s3, bucketName);
+		}catch (AmazonS3Exception ex){
+			if(ex.getMessage().indexOf("XML you provided was not well-formed") > 0){
+				System.out.println("I don't care about: "+ex.getMessage());
+				Thread.sleep(1000);
+				this.purgeBucket(bucketName,profile);
+			}
+		}
 	}
 	
 	public void deleteBucketForce(String bucketName, String profile) throws Exception{
 		h.help(bucketName,"<bucket> <profile>");
 		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
+		this.purgeBucket(bucketName,profile);
 		util.deleteBucketForce(s3, bucketName);
 	}
 	
