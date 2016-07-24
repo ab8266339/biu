@@ -16,5 +16,5 @@ public class Config {
 	public static final String BEIJING_DEFAULT_VPC_SUBNET1 = ""; // custom VPC subnet 1 id.
 	public static final String BEIJING_DEFAULT_VPC_SUBNET2 = ""; // custom VPC subnet 2 id, backup of subnet 1.
 	public static final String BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP = ""; // custom VPC allow all security group id.
-	
+	public static final String BEIJING_DEMO_SQS_QUEUE_URL = ""; // SQS queue url for demo in Beijing.
 }

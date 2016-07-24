@@ -140,7 +140,13 @@ import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.DeleteTopicRequest;
 import com.amazonaws.services.sns.model.Topic;
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.DeleteQueueRequest;
+import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
+import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.amazonaws.services.autoscaling.AmazonAutoScaling;
 import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.LaunchConfiguration;
@@ -371,6 +377,41 @@ public class Biu {
 		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
 		S3Util util = new S3Util();
 		util.copyBucket(s3, sourceBucketName, destinationBucketName);
+	}
+	
+
+	public void demoSqsOrder(String longPoll) throws Exception{
+		h.help(longPoll,"<longPoll: true | false>");
+		System.out.println("Sending 7 messages to "+Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		AmazonSQS sqs = (AmazonSQS) Clients.getClientByProfile(Clients.SQS, "beijing");
+		SendMessageRequest smr = new SendMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		for(int i=1;i<8;i++){
+			smr.setMessageBody("#"+i+" Test Message");
+			System.out.println("Sending => "+"#"+i+" Test Message");
+			sqs.sendMessage(smr);
+		}
+		System.out.println("Sending Done.");
+		System.out.println("Try to receive message from "+Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		ReceiveMessageRequest rmr = new ReceiveMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		rmr.setMaxNumberOfMessages(1); // 1~10 Returned messages can be fewer, it is NOT guaranteed.
+		if(Boolean.valueOf(longPoll)){
+			rmr.setWaitTimeSeconds(20);
+		}
+		List<Message> messages = null;
+		ReceiveMessageResult rmrt = null;
+		for(int i=1;i<8;i++){
+			rmrt = sqs.receiveMessage(rmr);
+			messages = rmrt.getMessages();
+			String title = null;
+			for (Message message : messages) {
+			title = "Receiving => "+message.getBody();
+				System.out.print(title);
+				String receiptHandle = message.getReceiptHandle();
+				sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL).withReceiptHandle(receiptHandle));
+				System.out.println(", deleted");
+			}
+		}
+		System.out.println("Receiving Done.");
 	}
 	
 	public void demoDefaultKplConfig(){
@@ -1447,6 +1488,64 @@ public class Biu {
 		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_TOKYO);
 	}
 	
+	
+	public void openBucket(String bucketName, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
+		Regions region = Biu.PROFILE_REGIONS.get(profile);
+		String partition = "aws";
+		for(Regions r:Biu.CHINA_REGIONS){
+			if(r.equals(region)){
+				partition="aws-cn";
+				break;
+			}
+		}
+		S3Util util = new S3Util();
+		String policyJson = "{\n"+
+	"\"Version\": \"2012-10-17\",\n"+
+	"\"Id\": \"Policy1449411144046\",\n"+
+	"\"Statement\": [\n"+
+		"{\n"+
+			"\"Sid\": \"Stmt144941114259\",\n"+
+			"\"Effect\": \"Allow\",\n"+
+			"\"Principal\": \"*\",\n"+
+			"\"Action\": \"s3:GetObject\",\n"+
+			"\"Resource\": \"arn:"+partition+":s3:::"+bucketName+"/*\"\n"+
+		"}\n"+
+	"]\n"+
+	"}";
+		System.out.println(policyJson);
+		util.setBucketPolicy(s3, bucketName, policyJson);
+	}
+	
+	public void closeBucket(String bucketName, String profile) throws Exception{
+		h.help(bucketName,"<bucket> <profile>");
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
+		Regions region = Biu.PROFILE_REGIONS.get(profile);
+		String partition = "aws";
+		for(Regions r:Biu.CHINA_REGIONS){
+			if(r.equals(region)){
+				partition="aws-cn";
+				break;
+			}
+		}
+		S3Util util = new S3Util();
+		String policyJson = "{\n"+
+	"\"Version\": \"2012-10-17\",\n"+
+	"\"Id\": \"Policy1449411144046\",\n"+
+	"\"Statement\": [\n"+
+		"{\n"+
+			"\"Sid\": \"Stmt144941114259\",\n"+
+			"\"Effect\": \"Deny\",\n"+
+			"\"Principal\": \"*\",\n"+
+			"\"Action\": \"s3:GetObject\",\n"+
+			"\"Resource\": \"arn:"+partition+":s3:::"+bucketName+"/*\"\n"+
+		"}\n"+
+	"]\n"+
+	"}";
+		System.out.println(policyJson);
+		util.setBucketPolicy(s3, bucketName, policyJson);
+	}
 	
 	/**
 	 * open Beijing public network.

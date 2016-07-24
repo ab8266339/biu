@@ -45,6 +45,7 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.model.S3VersionSummary;
 import com.amazonaws.services.s3.model.SSECustomerKey;
+import com.amazonaws.services.s3.model.SetBucketPolicyRequest;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.VersionListing;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -53,6 +54,10 @@ import com.amazonaws.event.ProgressEvent;
 import com.amazonaws.event.ProgressListener;
 
 public class S3Util {
+	
+	public void setBucketPolicy(AmazonS3 s3, String bucketName, String policyJson){
+		s3.setBucketPolicy(new SetBucketPolicyRequest(bucketName,policyJson));
+	}
 	
 	public void copyBucket(AmazonS3 s3, String sourceBucketName, String destinationBucketName){
 		String sourceKey = null;
