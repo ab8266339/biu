@@ -4,10 +4,10 @@ import com.amazonaws.services.elasticache.AmazonElastiCache;
 import com.amazonaws.services.elasticache.model.CacheCluster;
 import com.amazonaws.services.elasticache.model.DeleteCacheClusterRequest;
 
-public class ElastiCacheUtil {
+public class ElasticacheUtil implements IUtil{
 	
-	public void printAllPhysicalId(AmazonElastiCache cache){
-		for(CacheCluster cc:cache.describeCacheClusters().getCacheClusters()){
+	public void printAllPhysicalId(Object cache){
+		for(CacheCluster cc:((AmazonElastiCache)cache).describeCacheClusters().getCacheClusters()){
 			System.out.println("elasticache: "+cc.getCacheClusterId());
 		}
 	}

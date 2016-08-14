@@ -26,6 +26,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
+import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.MergeShardsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
@@ -38,12 +39,17 @@ import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 
-public class KinesisUtil {
+public class KinesisUtil implements IUtil{
 	
-	public void printAllPhysicalId(AmazonKinesis k){
-		for(String streamName:k.listStreams().getStreamNames()){
+	public void printAllPhysicalId(Object k){
+		for(String streamName:((AmazonKinesis)k).listStreams().getStreamNames()){
 			System.out.println("kinesis: "+streamName);
 		}
+	}
+	
+	public void deleteStream(AmazonKinesis k, String streamName){
+		k.deleteStream(new DeleteStreamRequest().withStreamName(streamName));
+		System.out.println("=> Deleting stream "+streamName);
 	}
 	
 	public void printShardInStream(AmazonKinesis k, String streamName){
@@ -178,7 +184,7 @@ public class KinesisUtil {
 	}
 	
 	public void produceRandomRecordsByKPL(String streamName, int parallelDegree, int userRecordsToAggregate, int recordsPerPut, String profile, String tempDir){
-		Region region = Region.getRegion(Biu.PROFILE_REGIONS.get(profile));
+		Region region = Clients.getRegion(profile);
 		KinesisProducerConfiguration config = new KinesisProducerConfiguration()
 							.setAggregationEnabled(true)
 							.setAggregationMaxCount(userRecordsToAggregate)
@@ -219,9 +225,9 @@ public class KinesisUtil {
 		System.out.println("Profile: "+profile);
 		String style = initialStyle.equals("new")?"new":"join";
 		System.out.println("Application worker instance initialization style: "+style);
-		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByProfile(Clients.DDB, profile);
+		AmazonDynamoDB ddb = (AmazonDynamoDB) Clients.getClientByServiceClassProfile(Clients.DDB, profile);
 		String appName = streamName+"-app-kcl";
-		DynamoDBUtil ddbUtil = new DynamoDBUtil();
+		DynamodbUtil ddbUtil = new DynamodbUtil();
 		try{
 			String tableName = ddb.describeTable(appName).getTable().getTableName();
 			System.out.println("DDB table name: "+tableName);
@@ -236,7 +242,7 @@ public class KinesisUtil {
 		System.out.println("Worker named: "+workerId);
 		KinesisClientLibConfiguration kcc = new KinesisClientLibConfiguration(appName, streamName, AccessKeys.getCredentialsByProfile(profile), workerId);		
 		kcc.withInitialPositionInStream(initialPositionInStream);
-		kcc.withRegionName(Biu.PROFILE_REGIONS.get(profile).getName());
+		kcc.withRegionName(GeneralUtil.PROFILE_REGIONS.get(profile).getName());
 		kcc.withIdleTimeBetweenReadsInMillis(500);
 		
         Worker worker = new Worker.Builder()
@@ -276,7 +282,7 @@ class Producer extends Thread{
 	
 	public void run(){
 		try{
-			AmazonKinesis k = (AmazonKinesis) Clients.getClientByProfile(Clients.KINESIS, this.profile);
+			AmazonKinesis k = (AmazonKinesis) Clients.getClientByServiceClassProfile(Clients.KINESIS, this.profile);
 			PutRecordsRequest prr = new PutRecordsRequest()
 										.withStreamName(this.streamName);
 			List<PutRecordsRequestEntry> putRecordsRequestEntries = null;
@@ -292,7 +298,7 @@ class Producer extends Thread{
 					entry = new PutRecordsRequestEntry();
 					partKey = r.nextInt(10000);			// partition key
 					payload = (new Date()).toString();	// data payload
-					entry.setData(ByteBuffer.wrap(String.valueOf(payload).getBytes("UTF-8")));
+					entry.setData(ByteBuffer.wrap(String.valueOf(payload).getBytes("UTF-8"))); // bytes stream
 					payloads[i] = payload;
 					entry.setPartitionKey(Integer.toString(partKey));
 					putRecordsRequestEntries.add(entry);

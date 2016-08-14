@@ -26,10 +26,14 @@ import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 //import com.amazonaws.util.json.JSONObject;
 import com.amazonaws.util.json.Jackson;
 
-public class STSUtil {
+public class STSUtil implements IUtil{
 	
 	public GetCallerIdentityResult getCallerId(AWSSecurityTokenService sts){
 		return sts.getCallerIdentity(new GetCallerIdentityRequest());
+	}
+	
+	public String getAccountId(AWSSecurityTokenService sts){
+		return this.getCallerId(sts).getAccount();
 	}
 	
 	public BasicSessionCredentials getSessionToken(AWSSecurityTokenService sts, int sec){
@@ -255,6 +259,11 @@ public class STSUtil {
 		
 		}
 		return loginURL;
+	}
+
+	@Override
+	public void printAllPhysicalId(Object o) {
+		System.out.println("N/A");
 	}
 
 }

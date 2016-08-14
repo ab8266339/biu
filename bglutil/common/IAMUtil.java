@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagement;
 import com.amazonaws.services.identitymanagement.model.AccessKeyMetadata;
+import com.amazonaws.services.identitymanagement.model.AttachedPolicy;
 import com.amazonaws.services.identitymanagement.model.DeleteAccessKeyRequest;
 import com.amazonaws.services.identitymanagement.model.DeleteGroupPolicyRequest;
 import com.amazonaws.services.identitymanagement.model.DeleteGroupRequest;
@@ -13,9 +14,15 @@ import com.amazonaws.services.identitymanagement.model.DeleteRolePolicyRequest;
 import com.amazonaws.services.identitymanagement.model.DeleteRoleRequest;
 import com.amazonaws.services.identitymanagement.model.DeleteUserPolicyRequest;
 import com.amazonaws.services.identitymanagement.model.DeleteUserRequest;
+import com.amazonaws.services.identitymanagement.model.DetachGroupPolicyRequest;
+import com.amazonaws.services.identitymanagement.model.DetachRolePolicyRequest;
+import com.amazonaws.services.identitymanagement.model.DetachUserPolicyRequest;
 import com.amazonaws.services.identitymanagement.model.Group;
 import com.amazonaws.services.identitymanagement.model.InstanceProfile;
 import com.amazonaws.services.identitymanagement.model.ListAccessKeysRequest;
+import com.amazonaws.services.identitymanagement.model.ListAttachedGroupPoliciesRequest;
+import com.amazonaws.services.identitymanagement.model.ListAttachedRolePoliciesRequest;
+import com.amazonaws.services.identitymanagement.model.ListAttachedUserPoliciesRequest;
 import com.amazonaws.services.identitymanagement.model.ListGroupPoliciesRequest;
 import com.amazonaws.services.identitymanagement.model.ListInstanceProfilesForRoleRequest;
 import com.amazonaws.services.identitymanagement.model.ListPoliciesRequest;
@@ -28,9 +35,10 @@ import com.amazonaws.services.identitymanagement.model.RemoveRoleFromInstancePro
 import com.amazonaws.services.identitymanagement.model.Role;
 import com.amazonaws.services.identitymanagement.model.User;
 
-public class IAMUtil {
+public class IAMUtil implements IUtil{
 	
-	public void printAllPhysicalId(AmazonIdentityManagement iam){
+	public void printAllPhysicalId(Object o){
+		AmazonIdentityManagement iam = (AmazonIdentityManagement)o;
 		for(User u: iam.listUsers().getUsers()){
 			System.out.println("user: "+u.getUserName());
 		}
@@ -61,6 +69,9 @@ public class IAMUtil {
 			iam.deleteUserPolicy(new DeleteUserPolicyRequest().withPolicyName(policy).withUserName(username));
 			System.out.println("Deleting user policy - "+policy);
 		}
+		for(AttachedPolicy policy:iam.listAttachedUserPolicies(new ListAttachedUserPoliciesRequest().withUserName(username)).getAttachedPolicies()){
+			iam.detachUserPolicy(new DetachUserPolicyRequest().withUserName(username).withPolicyArn(policy.getPolicyArn()));
+		}
 		iam.deleteUser(new DeleteUserRequest().withUserName(username));
 		System.out.println("Dropping user - "+username);
 	}
@@ -69,6 +80,9 @@ public class IAMUtil {
 		for(String policy:iam.listGroupPolicies(new ListGroupPoliciesRequest().withGroupName(groupname)).getPolicyNames()){
 			iam.deleteGroupPolicy(new DeleteGroupPolicyRequest().withPolicyName(policy).withGroupName(groupname));
 			System.out.println("Deleting group policy - "+policy);
+		}
+		for(AttachedPolicy policy:iam.listAttachedGroupPolicies(new ListAttachedGroupPoliciesRequest().withGroupName(groupname)).getAttachedPolicies()){
+			iam.detachGroupPolicy(new DetachGroupPolicyRequest().withGroupName(groupname).withPolicyArn(policy.getPolicyArn()));
 		}
 		iam.deleteGroup(new DeleteGroupRequest().withGroupName(groupname));
 		System.out.println("Dropping group - "+groupname);
@@ -84,6 +98,9 @@ public class IAMUtil {
 		for(String policy:iam.listRolePolicies(new ListRolePoliciesRequest().withRoleName(rolename)).getPolicyNames()){
 			iam.deleteRolePolicy(new DeleteRolePolicyRequest().withPolicyName(policy).withRoleName(rolename));
 			System.out.println("Deleting role policy - "+policy);
+		}
+		for(AttachedPolicy policy:iam.listAttachedRolePolicies(new ListAttachedRolePoliciesRequest().withRoleName(rolename)).getAttachedPolicies()){
+			iam.detachRolePolicy(new DetachRolePolicyRequest().withRoleName(rolename).withPolicyArn(policy.getPolicyArn()));
 		}
 		iam.deleteRole(new DeleteRoleRequest().withRoleName(rolename));
 		System.out.println("Dropping role - "+rolename);

@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 
 import bglutil.main.Biu;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -48,12 +49,14 @@ public class Clients {
 	public static final String CONFIG = "config.AmazonConfigClient";
 	public static final String STS = "securitytoken.AWSSecurityTokenServiceClient";
 	public static final String KMS = "kms.AWSKMSClient";
+	public static final String HSM = "cloudhsm.AWSCloudHSMClient";
 	
 	// Deployment & Management
 	public static final String CFN = "cloudformation.AmazonCloudFormationClient";
 	public static final String EB = "elasticbeanstalk.AWSElasticBeanstalkClient";
 	public static final String OPSWORKS = "opsworks.AWSOpsWorksClient";
 	public static final String CODEDEPLOY = "codedeploy.AmazonCodeDeployClient";
+	public static final String CODECOMMIT = "codecommit.AWSCodeCommitClient";
 	
 	// Analytics
 	public static final String EMR = "elasticmapreduce.AmazonElasticMapReduceClient";
@@ -66,7 +69,7 @@ public class Clients {
 	public static final String SWF = "simpleworkflow.AmazonSimpleWorkflowClient";
 	public static final String TRANSCODER = "elastictranscoder.AmazonElasticTranscoderClient";
 	public static final String SES = "simpleemail.AmazonSimpleEmailServiceClient";
-	public static final String CLOUDSEARCH = "cloudsearch.AmazonCloudSearchClient";
+	public static final String CLOUDSEARCH = "cloudsearchv2.AmazonCloudSearchClient";
 	//public static final String APPSTREAM; NO AppStream?
 	
 	// Mobile Service
@@ -93,6 +96,13 @@ public class Clients {
 		return obj;
 	}
 	
+	private static Object newInstance(String className) throws ClassNotFoundException, NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
+		Class<?> clazz = Class.forName(className);
+		Constructor<?> conztructor = clazz.getConstructor();
+		Object obj = conztructor.newInstance();
+		return obj;
+	}
+	
 	private static void setRegion(Object obj, Regions regions) throws NoSuchMethodException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
 		Class<?> clazz = obj.getClass();
 		Class<?> parent = clazz.getSuperclass();
@@ -106,15 +116,51 @@ public class Clients {
 		mesod.invoke(obj, Region.getRegion(regions));
 	}
 
-	public static Object getClientByProfile(String service, String profileName) throws Exception{
-		Object c = newInstance(SERVICE_PACKAGE_PREFIX+service,new Class[]{AWSCredentialsProvider.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName)});
-		setRegion(c, Biu.PROFILE_REGIONS.get(profileName));
+	public static Object getClientByServiceClassProfile(String serviceClassName, String profileName) throws Exception{
+		ClientConfiguration cc = new ClientConfiguration();
+		Object c = newInstance(SERVICE_PACKAGE_PREFIX+serviceClassName,new Class[]{AWSCredentialsProvider.class,ClientConfiguration.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName),cc});
+		setRegion(c, GeneralUtil.PROFILE_REGIONS.get(profileName));
 		return c;
 	}
-
-
+	
+	public static Object getClientByServiceAbbrProfile(String serviceAbb, String profileName) throws Exception{
+		ClientConfiguration cc = new ClientConfiguration();
+		Object c = newInstance(getServiceClassFromServiceAbbr(serviceAbb),new Class[]{AWSCredentialsProvider.class,ClientConfiguration.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName),cc});
+		setRegion(c, GeneralUtil.PROFILE_REGIONS.get(profileName));
+		return c;
+	}
+	
+	public static String getServiceNameFromServiceAbbr(String serviceAbb){
+		return GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbb);
+	}
+	
+	public static String getServiceClassFromServiceAbbr(String serviceAbb){
+		return SERVICE_PACKAGE_PREFIX+GeneralUtil.SERVICENAME_PACKAGECLASS.get(getServiceNameFromServiceAbbr(serviceAbb));
+	}
+	
+	public static IUtil getUtilByServiceName(String serviceName) throws Exception{
+		IUtil u = (IUtil) newInstance("bglutil.common."+serviceName+"Util");
+		return u;
+	}
+	
+	public static IUtil getUtilByServiceAbbr(String serviceAbb) throws Exception{
+		return getUtilByServiceName(GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbb));
+	}
+	
+	public static Regions getRegions(String profile){
+		return GeneralUtil.PROFILE_REGIONS.get(profile);
+	}
+	
+	public static Region getRegion(String profile){
+		return Region.getRegion(Clients.getRegions(profile));
+	}
+	
+	public static String getRegionCode(String profile){
+		return GeneralUtil.PROFILE_REGIONS.get(profile).getName();
+	}
+	
 	public static boolean isChinaRegion(Regions regions){
-		for(Regions r: Biu.CHINA_REGIONS){
+		for(Regions r: GeneralUtil.CHINA_REGIONS){
 			if(r.equals(regions)){
 				return true;
 			}

@@ -73,13 +73,18 @@ import com.amazonaws.services.ec2.model.Volume;
 import com.amazonaws.services.ec2.model.VolumeState;
 import com.amazonaws.services.ec2.model.Vpc;
 import com.amazonaws.services.ec2.model.VpcPeeringConnection;
+import com.amazonaws.services.elasticmapreduce.model.InstanceState;
 
-public class EC2Util {
+public class EC2Util implements IUtil{
 		
-	public void printAllPhysicalId(AmazonEC2 ec2){
+	public void printAllPhysicalId(Object o){
+		AmazonEC2 ec2 = (AmazonEC2)o;
 		System.out.println("[] EC2 instances...");
 		for(Reservation r:ec2.describeInstances().getReservations()){
 			for(Instance i:r.getInstances()){
+				if(i.getState().getName().equalsIgnoreCase(InstanceState.TERMINATED.toString())){
+					continue;
+				}
 				System.out.print("ec2-instance: "+i.getInstanceId()+", "+i.getInstanceType()+", "+i.getSriovNetSupport()+", "+i.getState().getName()+", "+i.getPrivateIpAddress()+", "+i.getPublicIpAddress()+", ");
 				for(Tag tag:i.getTags()){
 					if(tag.getKey().equals("Name")){
@@ -104,6 +109,24 @@ public class EC2Util {
 		for(Volume v:ec2.describeVolumes().getVolumes()){
 			System.out.println("ec2-ebs: "+v.getVolumeId()+", "+v.getVolumeType()+", "+v.getSize()+", "+v.getAvailabilityZone());
 		}
+	}
+	
+	public List<Instance> getInstancesByNameTagPrefix(AmazonEC2 ec2, String prefix){
+		System.out.println("Searching tag:Name="+prefix+"*");
+		List<Instance> instances = new ArrayList<Instance>();
+		Filter f = new Filter().withName("tag:Name").withValues(prefix+"*");
+		DescribeInstancesRequest request = new DescribeInstancesRequest()
+		.withFilters(f);
+		String nextToken = null;
+		do{
+			request.setNextToken(nextToken);
+			DescribeInstancesResult result = ec2.describeInstances(request);
+			for(Reservation r:result.getReservations()){
+				instances.addAll(r.getInstances());
+			}
+			nextToken = result.getNextToken();
+		}while(nextToken!=null);
+		return instances;
 	}
 	
 	public void clearOrphanSnapshot(AmazonEC2 ec2, String accountId){

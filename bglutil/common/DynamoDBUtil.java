@@ -15,10 +15,10 @@ import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.model.*;
 
-public class DynamoDBUtil {
+public class DynamodbUtil implements IUtil{
 	
-	public void printAllPhysicalId(AmazonDynamoDB ddb){
-		for(String tablename:ddb.listTables().getTableNames()){
+	public void printAllPhysicalId(Object ddb){
+		for(String tablename:((AmazonDynamoDB)ddb).listTables().getTableNames()){
 			System.out.println("dynamodb: "+tablename);
 		}
 	}
@@ -28,7 +28,7 @@ public class DynamoDBUtil {
 				.withTableName(tableName);
 		DeleteTableResult deleteTableResult = ddb
 				.deleteTable(deleteTableRequest);
-		System.out.println("Table " + tableName + " :"
+		System.out.println("=> Deleting table " + tableName + " :"
 				+ deleteTableResult.getTableDescription().getTableStatus());
 	}
 	

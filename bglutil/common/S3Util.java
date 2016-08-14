@@ -19,6 +19,9 @@ import javax.crypto.SecretKey;
 import com.amazonaws.HttpMethod;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.rds.AmazonRDS;
+import com.amazonaws.services.rds.model.DBInstance;
+import com.amazonaws.services.rds.model.DBSnapshot;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -53,7 +56,14 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.event.ProgressEvent;
 import com.amazonaws.event.ProgressListener;
 
-public class S3Util {
+public class S3Util implements IUtil{
+	
+	public void printAllPhysicalId(Object o){
+		AmazonS3 s3 = (AmazonS3)o;
+		for(Bucket b:s3.listBuckets()){
+			System.out.println(b.getName());
+		}
+	}
 	
 	public void setBucketPolicy(AmazonS3 s3, String bucketName, String policyJson){
 		s3.setBucketPolicy(new SetBucketPolicyRequest(bucketName,policyJson));
@@ -240,7 +250,7 @@ public class S3Util {
 		List<PartETag> partETags = Collections
 				.synchronizedList(new ArrayList<PartETag>());
 		// Init.
-		AmazonS3 s3 = (AmazonS3)Clients.getClientByProfile(Clients.S3, profile);
+		AmazonS3 s3 = (AmazonS3)Clients.getClientByServiceClassProfile(Clients.S3, profile);
 		
 		InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(
 				bucketName, key);
@@ -421,7 +431,7 @@ public class S3Util {
 
 	public URL getPresignedUrl(String bucketName, String key, int hour,
 			String httpMethod, String profile) throws Exception {
-		AmazonS3 s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
+		AmazonS3 s3 = (AmazonS3) Clients.getClientByServiceClassProfile(Clients.S3, profile);
 		return this.getPresignedUrl(s3, bucketName, key, hour, httpMethod);
 	}
 
@@ -458,7 +468,7 @@ public class S3Util {
 			this.file = file;
 			this.workerSequence = workerSequence;
 			try {
-				this.s3 = (AmazonS3) Clients.getClientByProfile(Clients.S3, profile);
+				this.s3 = (AmazonS3) Clients.getClientByServiceClassProfile(Clients.S3, profile);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
