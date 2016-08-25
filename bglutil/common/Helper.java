@@ -38,5 +38,12 @@ public class Helper {
 		System.out.println(title+":\n");
 	}
 	
+	public static void wait(int msec){
+		try {
+			Thread.sleep(msec);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 	
 }

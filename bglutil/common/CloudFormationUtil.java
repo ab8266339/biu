@@ -9,7 +9,7 @@ public class CloudFormationUtil implements IUtil{
 	
 	public void printAllPhysicalId(Object cfn){
 		for(Stack stack:((AmazonCloudFormation)cfn).describeStacks().getStacks()){
-			System.out.println("cloudformation-stack: "+stack.getStackName()+", "+stack.getStackId());
+			System.out.println("cloudformation-stack: "+stack.getStackName()+", "+stack.getStackId()+", "+stack.getStackStatus());
 		}
 	}
 	

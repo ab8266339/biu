@@ -26,18 +26,22 @@ public class Clients {
 	public static final String SGW = "storagegateway.AWSStorageGatewayClient";
 	public static final String CF = "cloudfront.AmazonCloudFrontClient";
 	public static final String EFS = "elasticfilesystem.AmazonElasticFileSystemClient";
+	public static final String IMPORTEXPORT = "importexport.AmzonImportExportClient";
 	
 	// Database
 	public static final String DDB = "dynamodbv2.AmazonDynamoDBClient";
+	public static final String DDBSTREAMS = "dynamodbv2.AmazonDynamoDBStreamsClient";
 	public static final String DDBAsync = "dynamodbv2.AmazonDynamoDBAsyncClient";
 	public static final String RDS = "rds.AmazonRDSClient";
 	public static final String ELASTICACHE = "elasticache.AmazonElastiCacheClient";
 	public static final String REDSHIFT = "redshift.AmazonRedshiftClient";
 	public static final String DMS = "databasemigrationservice.AWSDatabaseMigrationServiceClient";
+	public static final String SDB = "simpledb.AmazonSimpleDBClient";
 	
 	// Networking
 	public static final String DX = "directconnect.AmazonDirectConnectClient";
 	public static final String R53 = "route53.AmazonRoute53Client";
+	public static final String R53DOMAIN = "route53domains.AmazonRoute53DomainsClient";
 	
 	// Administration & Security
 	public static final String IAM = "identitymanagement.AmazonIdentityManagementClient";
@@ -50,6 +54,7 @@ public class Clients {
 	public static final String STS = "securitytoken.AWSSecurityTokenServiceClient";
 	public static final String KMS = "kms.AWSKMSClient";
 	public static final String HSM = "cloudhsm.AWSCloudHSMClient";
+	public static final String EC2SSM = "simplesystemsmanagement.AWSSimpleSystemsManagementClient";
 	
 	// Deployment & Management
 	public static final String CFN = "cloudformation.AmazonCloudFormationClient";
@@ -57,6 +62,7 @@ public class Clients {
 	public static final String OPSWORKS = "opsworks.AWSOpsWorksClient";
 	public static final String CODEDEPLOY = "codedeploy.AmazonCodeDeployClient";
 	public static final String CODECOMMIT = "codecommit.AWSCodeCommitClient";
+	public static final String CODEPIPELINE = "codepipeline.AWSCodePipelineClinet";
 	
 	// Analytics
 	public static final String EMR = "elasticmapreduce.AmazonElasticMapReduceClient";
@@ -70,12 +76,15 @@ public class Clients {
 	public static final String TRANSCODER = "elastictranscoder.AmazonElasticTranscoderClient";
 	public static final String SES = "simpleemail.AmazonSimpleEmailServiceClient";
 	public static final String CLOUDSEARCH = "cloudsearchv2.AmazonCloudSearchClient";
+	public static final String WAF = "waf.AWSWAFClient";
 	//public static final String APPSTREAM; NO AppStream?
 	
 	// Mobile Service
 	public static final String SNS = "sns.AmazonSNSClient";
 	public static final String COGNITOID = "cognitoidentity.AmazonCognitoIdentityClient";
 	public static final String COGNITOSYNC = "cognitosync.AmazonCognitoSyncClient";
+	public static final String COGNITOIDP = "cognitoidp.AWSCognitoIdentityProviderClient";
+	public static final String DEVICEFARM = "devicefarm.AWSDeviceFarmClient";
 	//public static final String MOBILEANALYTICS; NO Mobile Analytics?
 	
 	// IOT
@@ -86,6 +95,9 @@ public class Clients {
 	public static final String WORKSPACES = "workspaces.AmazonWorkspacesClient";
 	//public static final String WORKDOCS; NO WorkDoc?
 	//public static final String WORKEMAIL; NO WorkMail?
+	
+	//Gaming
+	public static final String GAMELIFT = "gamelift.AmazonGameLiftClient";
 	
 	private static final String SERVICE_PACKAGE_PREFIX="com.amazonaws.services.";
 	
@@ -123,19 +135,34 @@ public class Clients {
 		return c;
 	}
 	
-	public static Object getClientByServiceAbbrProfile(String serviceAbb, String profileName) throws Exception{
+	public static Object getClientByServiceAbbrProfileProd(String serviceAbbr, String profileName) throws Exception{
 		ClientConfiguration cc = new ClientConfiguration();
-		Object c = newInstance(getServiceClassFromServiceAbbr(serviceAbb),new Class[]{AWSCredentialsProvider.class,ClientConfiguration.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName),cc});
+		Object c = newInstance(getServiceClassFromServiceAbbrProd(serviceAbbr),new Class[]{AWSCredentialsProvider.class,ClientConfiguration.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName),cc});
 		setRegion(c, GeneralUtil.PROFILE_REGIONS.get(profileName));
 		return c;
 	}
 	
-	public static String getServiceNameFromServiceAbbr(String serviceAbb){
-		return GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbb);
+	public static Object getClientByServiceAbbrProfileDev(String serviceAbbr, String profileName) throws Exception{
+		ClientConfiguration cc = new ClientConfiguration();
+		Object c = newInstance(getServiceClassFromServiceAbbrDev(serviceAbbr),new Class[]{AWSCredentialsProvider.class,ClientConfiguration.class}, new Object[]{AccessKeys.getCredentialsByProfile(profileName),cc});
+		setRegion(c, GeneralUtil.PROFILE_REGIONS.get(profileName));
+		return c;
 	}
 	
-	public static String getServiceClassFromServiceAbbr(String serviceAbb){
-		return SERVICE_PACKAGE_PREFIX+GeneralUtil.SERVICENAME_PACKAGECLASS.get(getServiceNameFromServiceAbbr(serviceAbb));
+	public static String getServiceNameFromServiceAbbrProd(String serviceAbbr){
+		return GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbbr);
+	}
+	
+	public static String getServiceNameFromServiceAbbrDev(String serviceAbbr){
+		return Biu.SERVICEABB_SERVICENAME.get(serviceAbbr);
+	}
+	
+	public static String getServiceClassFromServiceAbbrProd(String serviceAbb){
+		return SERVICE_PACKAGE_PREFIX+GeneralUtil.SERVICENAME_PACKAGECLASS.get(getServiceNameFromServiceAbbrProd(serviceAbb));
+	}
+	
+	public static String getServiceClassFromServiceAbbrDev(String serviceAbb){
+		return SERVICE_PACKAGE_PREFIX+GeneralUtil.SERVICENAME_PACKAGECLASS_FULL.get(getServiceNameFromServiceAbbrDev(serviceAbb));
 	}
 	
 	public static IUtil getUtilByServiceName(String serviceName) throws Exception{
@@ -143,8 +170,8 @@ public class Clients {
 		return u;
 	}
 	
-	public static IUtil getUtilByServiceAbbr(String serviceAbb) throws Exception{
-		return getUtilByServiceName(GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbb));
+	public static IUtil getUtilByServiceAbbr(String serviceAbbr) throws Exception{
+		return getUtilByServiceName(GeneralUtil.SERVICEABB_SERVICENAME_V2.get(serviceAbbr));
 	}
 	
 	public static Regions getRegions(String profile){

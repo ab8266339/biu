@@ -5,12 +5,14 @@ public class SNSNotification {
 		super();
 	}
 	public SNSNotification(String type, String messageId, String topicArn,
+			String subject,
 			String message, String timestamp, String signatureVersion,
 			String signature, String signingCertURL, String unsubscribeURL) {
 		super();
 		this.type = type;
 		this.messageId = messageId;
 		this.topicArn = topicArn;
+		this.subject = subject;
 		this.message = message;
 		this.timestamp = timestamp;
 		this.signatureVersion = signatureVersion;
@@ -75,6 +77,13 @@ public class SNSNotification {
 	private String type;
 	private String messageId;
 	private String topicArn;
+	private String subject;
+	public String getSubject() {
+		return subject;
+	}
+	public void setSubject(String subject) {
+		this.subject = subject;
+	}
 	private String message;
 	private String timestamp;
 	private String signatureVersion;

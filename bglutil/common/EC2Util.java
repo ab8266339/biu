@@ -2,6 +2,7 @@ package bglutil.common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import com.amazonaws.AmazonServiceException;
@@ -95,20 +96,35 @@ public class EC2Util implements IUtil{
 		}
 		System.out.println("[] Checking EIP...");
 		for(Address address:ec2.describeAddresses().getAddresses()){
-			System.out.println("eip-private-instnace: "+address.getPublicIp()+", "+address.getPrivateIpAddress()+", "+address.getInstanceId());
+			System.out.println("eip: "+address.getPublicIp()+", (association) "+address.getAssociationId()+", (private) "+address.getPrivateIpAddress()+", (instance) "+address.getInstanceId());
 		}
 		System.out.println("[] Checking Key pair...");
 		for(KeyPairInfo kpi:ec2.describeKeyPairs().getKeyPairs()){
 			System.out.println("ec2-keypair: "+kpi.getKeyName());
 		}
 		System.out.println("[] Checking AMI...");
+		TreeMap<String,Image> imageNameTm = new TreeMap<String,Image>();
 		for(Image image:ec2.describeImages(new DescribeImagesRequest().withOwners("self")).getImages()){
-			System.out.println("ec2-ami: "+image.getName()+", "+image.getImageId());
+			imageNameTm.put(image.getName(),image);
+		}
+		for(String imageName:imageNameTm.keySet()){
+			System.out.println("ec2-ami: "+imageName+", "+imageNameTm.get(imageName).getImageId());
 		}
 		System.out.println("[] Checking EBS...");
 		for(Volume v:ec2.describeVolumes().getVolumes()){
-			System.out.println("ec2-ebs: "+v.getVolumeId()+", "+v.getVolumeType()+", "+v.getSize()+", "+v.getAvailabilityZone());
+			System.out.println("ec2-ebs: "+v.getVolumeId()+", "+v.getVolumeType()+", "+v.getSize()+" GB, "+v.getAvailabilityZone()+", "+((v.getAttachments().size()==0)?"null":v.getAttachments().get(0).getInstanceId()));
 		}
+	}
+	
+	public Image getAmazonLinuxAmi(AmazonEC2 ec2){
+		Filter f1 = new Filter().withName("name").withValues("*amzn-ami-hvm*gp2");
+		Filter f2 = new Filter().withName("architecture").withValues("*x86_64");
+		Filter f3 = new Filter().withName("hypervisor").withValues("xen");
+		Filter f4 = new Filter().withName("owner-alias").withValues("amazon");
+		Filter f5 = new Filter().withName("state").withValues("available");
+		Filter f6 = new Filter().withName("virtualization-type").withValues("hvm");
+		Image ami = ec2.describeImages(new DescribeImagesRequest().withFilters(f1,f2,f3,f4,f5,f6)).getImages().get(0);
+		return ami;
 	}
 	
 	public List<Instance> getInstancesByNameTagPrefix(AmazonEC2 ec2, String prefix){
@@ -390,11 +406,15 @@ public class EC2Util implements IUtil{
 			DescribeVolumesResult result = ec2.describeVolumes(request);
 			for(Volume vol:result.getVolumes()){
 				System.out.println("=> Deleting "+vol.getVolumeId());
-				ec2.detachVolume(new DetachVolumeRequest().withForce(true).withVolumeId(vol.getVolumeId()));
-				int maxWait = 10;
+				if(vol.getAttachments().size()>0){
+					ec2.detachVolume(new DetachVolumeRequest().withForce(true).withVolumeId(vol.getVolumeId()));
+					System.out.println("=> Detaching...");
+				}
+				int maxWait = 20;
 				while(!ec2.describeVolumes(new DescribeVolumesRequest().withVolumeIds(vol.getVolumeId())).getVolumes().get(0).getState().equals(VolumeState.Available.toString())){
 					maxWait--;
 					try {
+						System.out.println(ec2.describeVolumes(new DescribeVolumesRequest().withVolumeIds(vol.getVolumeId())).getVolumes().get(0).getState().toString());
 						Thread.sleep(5*1000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
@@ -402,6 +422,7 @@ public class EC2Util implements IUtil{
 					if(maxWait==0){break;}
 				}
 				ec2.deleteVolume(new DeleteVolumeRequest().withVolumeId(vol.getVolumeId()));
+				System.out.println("=> Delete requested...");
 			}
 			nextToken = result.getNextToken();
 		}while(nextToken!=null);

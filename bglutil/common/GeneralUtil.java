@@ -7,6 +7,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import sun.misc.BASE64Encoder;
+import bglutil.common.types.DirectoryServiceWorkspacesClients;
 import bglutil.common.types.GLHashMap;
 import bglutil.common.types.GLTreeMap;
 import bglutil.conf.Config;
@@ -46,6 +47,8 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreams;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ecs.AmazonECS;
 import com.amazonaws.services.ecs.AmazonECSClient;
 import com.amazonaws.services.elasticache.AmazonElastiCache;
@@ -106,6 +109,7 @@ public class GeneralUtil {
 
 	public static final GLTreeMap<String, String> SERVICEABB_SERVICENAME_V2 = new GLTreeMap<String, String>();
 	public static final GLHashMap<String, String> SERVICENAME_PACKAGECLASS = new GLHashMap<String, String>();
+	public static final GLHashMap<String, String> SERVICENAME_PACKAGECLASS_FULL = new GLHashMap<String, String>();
 
 	public static final String[] SHOW_SERVICE_PROFILES = new String[] { "beijing", "seoul", "mumbai", "singapore",
 			"california", "ireland", "frankfurt", "sydney", "sanpaulo", "tokyo", "virginia", "oregon" };
@@ -195,7 +199,9 @@ public class GeneralUtil {
 				.put(AWSWAF.ENDPOINT_PREFIX, "WAF")
 				.put(AmazonWorkspaces.ENDPOINT_PREFIX, "Workspaces");
 		
-
+		/**
+		 * Target: Be sync with SERVICENAME_PACKAGECLASS_FULL
+		 */
 		SERVICENAME_PACKAGECLASS
 				.put("Autoscaling", Clients.ASG)
 				.put("CloudFormation", Clients.CFN)
@@ -206,8 +212,8 @@ public class GeneralUtil {
 				.put("CodeCommit", Clients.CODECOMMIT)
 				.put("CodeDeploy", Clients.CODEDEPLOY)
 				//TODO .put("CodePipeline",Clients.CODEPIPELINE)
-				.put("CognitoIdentity", Clients.COGNITOID)
-				.put("CognitoSync", Clients.COGNITOSYNC)
+				//TODO .put("CognitoIdentity", Clients.COGNITOID)
+				//TODO .put("CognitoSync", Clients.COGNITOSYNC)
 				//TODO .put("CognitoIdentityProvider",Clients.COGNITOIDP)
 				.put("Config", Clients.CONFIG)
 				//TODO .put("IoTData", Clients.IOTDATA)
@@ -224,8 +230,8 @@ public class GeneralUtil {
 				//TODO .put("ElasticFileSystem", Clients.EFS)
 				.put("ElasticLoadbalancing", Clients.ELB)
 				.put("ElasticMapReduce", Clients.EMR)
-				.put("ElasticTranscoder", Clients.TRANSCODER)
-				.put("Email", Clients.SES)
+				//TODO .put("ElasticTranscoder", Clients.TRANSCODER)
+				//TODO .put("Email", Clients.SES)
 				//TODO .put("GameLift",Clients.GAMELIFT)
 				.put("Glacier", Clients.GLACIER)
 				.put("IAM", Clients.IAM)
@@ -240,7 +246,7 @@ public class GeneralUtil {
 				//TODO .put("Opsworks", Clients.OPSWORKS)
 				.put("RDS", Clients.RDS)
 				//TODO .put("RedShift", Clients.REDSHIFT)
-				.put("Route53", Clients.R53)
+				//TODO .put("Route53", Clients.R53)
 				//TODO .put("Route53Domains",Clients.R53DOMAIN)
 				.put("S3", Clients.S3)
 				//TODO .put("SimpleDB",Clients.SDB)
@@ -252,19 +258,83 @@ public class GeneralUtil {
 				.put("STS", Clients.STS)
 				//TODO .put("Support", Clients.SUPPORT)
 				//TODO .put("SimpleWorkflow", Clients.SWF)
-				//TODO .put("Workspaces", Clients.WORKSPACES)
+				//TODO .put("WAF", Clients.WAF)
+				.put("Workspaces", Clients.WORKSPACES)
 				;
+		
+		SERVICENAME_PACKAGECLASS_FULL
+		.put("Autoscaling", Clients.ASG)
+		.put("CloudFormation", Clients.CFN)
+		.put("CloudFront", Clients.CF)
+		.put("CloudHSM", Clients.HSM)
+		.put("CloudSearch", Clients.CLOUDSEARCH)
+		.put("CloudTrail", Clients.CLOUDTRAIL)
+		.put("CodeCommit", Clients.CODECOMMIT)
+		.put("CodeDeploy", Clients.CODEDEPLOY)
+		.put("CodePipeline",Clients.CODEPIPELINE)
+		.put("CognitoIdentity", Clients.COGNITOID)
+		.put("CognitoSync", Clients.COGNITOSYNC)
+		.put("CognitoIdentityProvider",Clients.COGNITOIDP)
+		.put("Config", Clients.CONFIG)
+		.put("IoTData", Clients.IOTDATA)
+		.put("DataPipeline", Clients.DATAPIPELINE)
+		.put("DeviceFarm",Clients.DEVICEFARM)
+		.put("DirectConnect", Clients.DX)
+		.put("DMS", Clients.DMS)
+		.put("Directory", Clients.DS)
+		.put("Dynamodb", Clients.DDB)
+		.put("EC2", Clients.EC2)
+		.put("EC2ContainerService", Clients.ECS)
+		.put("Elasticache", Clients.ELASTICACHE)
+		.put("ElasticBeanstalk", Clients.EB)
+		.put("ElasticFileSystem", Clients.EFS)
+		.put("ElasticLoadbalancing", Clients.ELB)
+		.put("ElasticMapReduce", Clients.EMR)
+		.put("ElasticTranscoder", Clients.TRANSCODER)
+		.put("Email", Clients.SES)
+		.put("GameLift",Clients.GAMELIFT)
+		.put("Glacier", Clients.GLACIER)
+		.put("IAM", Clients.IAM)
+		.put("ImportExport",Clients.IMPORTEXPORT)
+		.put("IoT", Clients.IOT)
+		.put("Kinesis", Clients.KINESIS)
+		.put("KeyManagementService", Clients.KMS)
+		.put("Lambda", Clients.LAMBDA)
+		.put("CloudWatchLogs", Clients.LOGS)
+		.put("MachineLearning", Clients.ML)
+		.put("CloudWatch", Clients.CW)
+		.put("Opsworks", Clients.OPSWORKS)
+		.put("RDS", Clients.RDS)
+		.put("RedShift", Clients.REDSHIFT)
+		.put("Route53", Clients.R53)
+		.put("Route53Domains",Clients.R53DOMAIN)
+		.put("S3", Clients.S3)
+		.put("SimpleDB",Clients.SDB)
+		.put("SNS", Clients.SNS)
+		.put("SQS", Clients.SQS)
+		.put("EC2SimpleSystemsManager",Clients.EC2SSM)
+		.put("StorageGateway", Clients.SGW)
+		.put("DynamodbStreams",Clients.DDBSTREAMS)
+		.put("STS", Clients.STS)
+		.put("Support", Clients.SUPPORT)
+		.put("SimpleWorkflow", Clients.SWF)
+		.put("WAF", Clients.WAF)
+		.put("Workspaces", Clients.WORKSPACES);
+		
 	}
 
 	public static JsonNode getJsonNode(String jsonString) {
-		String prettyJson = jsonString.replaceAll("\"\\{", "{").replaceAll("\\}\"", "}").replaceAll(" {1,}:", ":");
+		String prettyJson = 
+				jsonString.replaceAll("\"\\{", "{")
+				.replaceAll("\\}\"", "}")
+				.replaceAll(" {1,}:", ":");
 		return Jackson.jsonNodeOf(prettyJson);
 	}
-
+	
 	public static String getArn(String service, String resourceType, String resourceName, String resourceDiscriminator,
 			String profile) throws Exception {
-		if (!SERVICENAME_PACKAGECLASS.containsKey(service)) {
-			throw new Exception(service + " is not in Biu.SERVICE_PACK_NAMES");
+		if (!Biu.SERVICEABB_SERVICENAME.containsKey(service)) {
+			throw new Exception(service + " is not in Biu.SERVICEABB_SERVICENAME");
 		}
 		String prefix = "arn:" + (GeneralUtil.isChinaProfile(profile) ? "aws-cn:" : "aws:") + service + ":";
 		String regionName = null;
@@ -353,6 +423,13 @@ public class GeneralUtil {
 	public static boolean isCompatible(String serviceAbbr, String profile) {
 		List<Region> regions = RegionUtils.getRegionsForService(serviceAbbr);
 		Region region = Region.getRegion(PROFILE_REGIONS.get(profile));
+		// Fix the bug in AWS SDK
+		if(serviceAbbr.equals(AWSLogs.ENDPOINT_PREFIX) && isChinaProfile(profile)){
+			regions.add(region);
+		}
+		else if(serviceAbbr.equals(AmazonRedshift.ENDPOINT_PREFIX) && isChinaProfile(profile)){
+			regions.add(region);
+		}
 		return regions.contains(region);
 	}
 
@@ -395,6 +472,11 @@ public class GeneralUtil {
 		String newName = currentName.replace("-v" + currentVersionNumber, "-v" + nextVersionNumber);
 		return newName;
 	}
+	
+	public static void tagResource(AmazonEC2 ec2, String resourceId, String tagKey, String tagValue){
+		Tag tag = new Tag().withKey(tagKey).withValue(tagValue);
+		ec2.createTags(new CreateTagsRequest().withResources(resourceId).withTags(tag));
+	}
 
 	public static void showAllGlobalResource() throws Exception {
 		System.out.println("\n############## Global #############");
@@ -421,7 +503,14 @@ public class GeneralUtil {
 			}
 			showCheckingSection(SERVICEABB_SERVICENAME_V2.get(serviceAbb));
 			IUtil util = Clients.getUtilByServiceAbbr(serviceAbb);
-			Object client = Clients.getClientByServiceAbbrProfile(serviceAbb, profile);
+			Object client = null;
+			if(serviceAbb.equals(AmazonWorkspaces.ENDPOINT_PREFIX)){
+				AmazonWorkspaces ws = (AmazonWorkspaces) Clients.getClientByServiceAbbrProfileProd(serviceAbb, profile);
+				AWSDirectoryService ds = (AWSDirectoryService) Clients.getClientByServiceAbbrProfileProd(AWSDirectoryService.ENDPOINT_PREFIX, profile);
+				client = new DirectoryServiceWorkspacesClients(ds,ws);
+			}else{
+				client = Clients.getClientByServiceAbbrProfileProd(serviceAbb, profile);
+			}
 			util.printAllPhysicalId(client);
 		}
 	}

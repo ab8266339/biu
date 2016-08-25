@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.crypto.KeyGenerator;
@@ -52,6 +53,19 @@ import com.amazonaws.services.s3.model.SetBucketPolicyRequest;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.VersionListing;
 import com.amazonaws.services.s3.transfer.TransferManager;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import bglutil.common.types.GlacierArchive;
+import bglutil.common.types.SQSMessageBodyS3Event;
+import bglutil.common.types.S3EventRecordRequestParameters;
+import bglutil.common.types.S3EventRecordResponseElements;
+import bglutil.common.types.S3EventRecordS3;
+import bglutil.common.types.S3EventRecordS3Bucket;
+import bglutil.common.types.S3EventRecordS3BucketOwnerIdentity;
+import bglutil.common.types.S3EventRecordS3Object;
+import bglutil.common.types.S3EventRecordUserIdentity;
+import bglutil.common.types.S3EventRecord;
+
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.event.ProgressEvent;
 import com.amazonaws.event.ProgressListener;
@@ -433,6 +447,86 @@ public class S3Util implements IUtil{
 			String httpMethod, String profile) throws Exception {
 		AmazonS3 s3 = (AmazonS3) Clients.getClientByServiceClassProfile(Clients.S3, profile);
 		return this.getPresignedUrl(s3, bucketName, key, hour, httpMethod);
+	}
+	
+	public SQSMessageBodyS3Event evaluateSQSMessageBodyS3Event(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new SQSMessageBodyS3Event(
+					n.get("Records").toString()
+				);
+	}
+	
+	public List<S3EventRecord> evaludateS3EventRecords(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		Iterator<JsonNode> records = n.elements();
+		ArrayList<S3EventRecord> retRecords = new ArrayList<S3EventRecord>();
+		JsonNode c = null;
+		while(records.hasNext()){
+			c = records.next();
+			retRecords.add(
+						new S3EventRecord(
+									c.get("eventVersion").asText(),
+									c.get("eventSource").asText(),
+									c.get("awsRegion").asText(),
+									c.get("eventTime").asText(),
+									c.get("eventName").asText(),
+									c.get("userIdentity").toString(),
+									c.get("requestParameters").toString(),
+									c.get("responseElements").toString(),
+									c.get("s3").toString()));
+		}
+		return retRecords;
+	}
+	
+	public S3EventRecordUserIdentity evaluateS3EventUserIdentity(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordUserIdentity(
+					n.get("principalId").asText());
+	}
+	
+	public S3EventRecordRequestParameters evaluateS3EventRequestParameters(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordRequestParameters(
+					n.get("sourceIPAddress").asText());
+	}
+	
+	public S3EventRecordResponseElements evaluateS3EventRecordResponseElements(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordResponseElements(
+					n.get("x-amz-request-id").asText(),
+					n.get("x-amz-id-2").asText());
+	}
+	
+	public S3EventRecordS3 evaluateS3EventRecordS3(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordS3(
+					n.get("s3SchemaVersion").asText(),
+					n.get("configurationId").asText(),
+					n.get("bucket").toString(),
+					n.get("object").toString());
+	}
+	
+	public S3EventRecordS3Bucket evaluateS3EventRecordS3Bucket(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordS3Bucket(
+					n.get("name").asText(),
+					n.get("ownerIdentity").toString(),
+					n.get("arn").asText());
+	}
+	
+	public S3EventRecordS3BucketOwnerIdentity evaluateS3EventRecordS3BucketOwnerIdentity(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordS3BucketOwnerIdentity(
+					n.get("principalId").asText());
+	}
+	
+	public S3EventRecordS3Object evaluateS3EventRecordS3Object(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new S3EventRecordS3Object(
+					n.get("key").asText(),
+					n.get("size").asLong(),
+					n.get("eTag").asText(),
+					n.get("sequencer").asText());
 	}
 
 	class MultipartUploadWorker extends Thread {

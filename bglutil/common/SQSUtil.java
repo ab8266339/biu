@@ -3,6 +3,7 @@ package bglutil.common;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.DeleteQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
@@ -26,12 +27,16 @@ public class SQSUtil implements IUtil{
 		}
 	}
 	
-	public void showAllMessageInQueue(AmazonSQS sqs, String queueName, int peekCount, String profile) throws Exception{
+	public void showAllMessageInQueue(AmazonSQS sqs, String queueName, int peekCount, boolean remove, String profile) throws Exception{
 		String queueUrl = this.getQueueUrl(queueName, profile);
 		for(int i=0;i<peekCount;i++){
 			for(Message m:sqs.receiveMessage(new ReceiveMessageRequest().withQueueUrl(queueUrl).withVisibilityTimeout(2).withMaxNumberOfMessages(10)).getMessages()){
 				h.title("=> Message Body Start");
 				System.out.println(m.getBody().replaceAll("\\\\", ""));
+				if(remove){
+					sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(this.getQueueUrl(queueName, profile))
+						.withReceiptHandle(m.getReceiptHandle()));
+				}
 				h.title("=> Message Body End");
 			}
 		}

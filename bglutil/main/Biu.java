@@ -12,20 +12,17 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import org.apache.http.conn.ConnectTimeoutException;
 
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
@@ -39,8 +36,12 @@ import bglutil.common.CloudTrailUtil;
 import bglutil.common.CodeCommitUtil;
 import bglutil.common.CodeDeployUtil;
 import bglutil.common.ConfigUtil;
+import bglutil.common.DataPipelineUtil;
+import bglutil.common.DirectoryUtil;
 import bglutil.common.DynamodbUtil;
+import bglutil.common.EC2ContainerServiceUtil;
 import bglutil.common.EC2Util;
+import bglutil.common.ElasticBeanstalkUtil;
 import bglutil.common.ElasticLoadbalancingUtil;
 import bglutil.common.ElasticMapReduceUtil;
 import bglutil.common.ElasticacheUtil;
@@ -49,6 +50,7 @@ import bglutil.common.GlacierUtil;
 import bglutil.common.CloudHSMUtil;
 import bglutil.common.Helper;
 import bglutil.common.IAMUtil;
+import bglutil.common.IUtil;
 import bglutil.common.KeyManagementServiceUtil;
 import bglutil.common.KinesisUtil;
 import bglutil.common.LambdaUtil;
@@ -58,13 +60,16 @@ import bglutil.common.S3Util;
 import bglutil.common.SNSUtil;
 import bglutil.common.SQSUtil;
 import bglutil.common.STSUtil;
-import bglutil.common.types.GLTreeMap;
+import bglutil.common.WorkspacesUtil;
+import bglutil.common.types.DirectoryServiceWorkspacesClients;
+import bglutil.common.types.S3EventRecord;
+import bglutil.common.types.SQSMessageBodyS3Event;
 import bglutil.conf.Config;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.Request;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.policy.Policy;
@@ -89,6 +94,9 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.codecommit.AWSCodeCommit;
 import com.amazonaws.services.codedeploy.AmazonCodeDeploy;
 import com.amazonaws.services.config.AmazonConfig;
+import com.amazonaws.services.datapipeline.DataPipeline;
+import com.amazonaws.services.directory.AWSDirectoryService;
+import com.amazonaws.services.directory.model.DirectoryDescription;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -103,16 +111,11 @@ import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
 import com.amazonaws.services.dynamodbv2.document.utils.NameMap;
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
-import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.services.dynamodbv2.model.ListTablesRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.AttachVolumeRequest;
 import com.amazonaws.services.ec2.model.AttachVolumeResult;
 import com.amazonaws.services.ec2.model.CreateVolumeRequest;
@@ -128,6 +131,7 @@ import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
 import com.amazonaws.services.ec2.model.DetachVolumeRequest;
+import com.amazonaws.services.ec2.model.DryRunSupportedRequest;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
@@ -136,11 +140,14 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RouteTable;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.Volume;
 import com.amazonaws.services.ec2.model.VolumeState;
 import com.amazonaws.services.ec2.model.VolumeType;
+import com.amazonaws.services.ecs.AmazonECS;
 import com.amazonaws.services.elasticache.AmazonElastiCache;
 import com.amazonaws.services.elasticache.model.CacheCluster;
+import com.amazonaws.services.elasticbeanstalk.AWSElasticBeanstalk;
 import com.amazonaws.services.elasticloadbalancing.AmazonElasticLoadBalancing;
 import com.amazonaws.services.elasticloadbalancing.model.LoadBalancerDescription;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
@@ -164,28 +171,25 @@ import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBSnapshot;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import com.amazonaws.services.securitytoken.model.GetCallerIdentityRequest;
 import com.amazonaws.services.securitytoken.model.GetCallerIdentityResult;
-import com.amazonaws.services.securitytoken.model.GetSessionTokenRequest;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.DeleteTopicRequest;
 import com.amazonaws.services.sns.model.Topic;
 import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.DeleteMessageRequest;
 import com.amazonaws.services.sqs.model.DeleteQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.workspaces.AmazonWorkspaces;
 import com.amazonaws.services.autoscaling.AmazonAutoScaling;
 import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.LaunchConfiguration;
@@ -350,7 +354,7 @@ public class Biu {
 		System.out.println(util.retrieveInventory(g, vaultName, snsTopicArn));
 	}
 	
-	public void publish(String topicName, String subject, String body, String profile) throws Exception{
+	public void publishSns(String topicName, String subject, String body, String profile) throws Exception{
 		h.help(topicName,"<topic-name> <subject> <body> <profile>");
 		SNSUtil sns = new SNSUtil();
 		sns.publish(topicName, subject, body, profile);
@@ -712,6 +716,18 @@ public class Biu {
 		}
 	}
 	
+	public void showResource(String serviceAbbr, String profile) throws Exception{
+		h.help(serviceAbbr,"<service-name-abbr> <profile>");
+		if(GeneralUtil.isCompatible(serviceAbbr, profile)){
+			IUtil util = Clients.getUtilByServiceAbbr(serviceAbbr);
+			Object client = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, profile);
+			util.printAllPhysicalId(client);
+		}
+		else{
+			System.out.println(Clients.getServiceNameFromServiceAbbrProd(serviceAbbr)+" not available in region "+Clients.getRegionCode(profile));
+		}
+	}
+	
 	public void showResourceAll() throws Exception{
 		GeneralUtil.showAllResource();
 	}
@@ -719,6 +735,7 @@ public class Biu {
 	public void showResourceByProfile(String profile) throws Exception{
 		h.help(profile,"<profile>");
 		GeneralUtil.showAllResourceInProfileV2(profile);
+		System.out.println("\nBye~");
 	}
 	
 	public void showResourceByService(String serviceAbbr) throws Exception{
@@ -739,16 +756,16 @@ public class Biu {
 		14: CognitoSync - cognito-sync
 		15: Config - config // Done
 		16: DMS - dms
-		17: DataPipeline - datapipeline
+		17: DataPipeline - datapipeline // Done
 		18: DeviceFarm - devicefarm
 		19: DirectConnect - directconnect
-		20: Directory - ds
-		21: Dynamodb - dynamodb
+		20: Directory - ds // Done
+		21: Dynamodb - dynamodb // Done
 		22: DynamodbStreams - streams.dynamodb
 		23: EC2 - ec2 // Done
-		24: EC2ContainerService - ecs
+		24: EC2ContainerService - ecs // Done
 		25: EC2SimpleSystemsManager - ssm
-		26: ElasticBeanstalk - elasticbeanstalk
+		26: ElasticBeanstalk - elasticbeanstalk // Done
 		27: ElasticFileSystem - elasticfilesystem
 		28: ElasticLoadbalancing - elasticloadbalancing // Done
 		29: ElasticMapReduce - elasticmapreduce // Done
@@ -779,42 +796,48 @@ public class Biu {
 		54: StorageGateway - storagegateway
 		55: Support - support
 		56: WAF - waf
-		57: Workspaces - workspaces
+		57: Workspaces - workspaces // Done
 		*/
 		h.help(serviceAbbr,"<service-abbr>");
+		if(serviceAbbr.equals("?")){
+			this.showServiceAll(); return;
+		}
 		Object c = null;
 		if(serviceAbbr.equals(AmazonIdentityManagement.ENDPOINT_PREFIX)){
 			h.title("[china]");
-			c = Clients.getClientByServiceAbbrProfile(serviceAbbr, "beijing");
+			c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, "beijing");
 			new IAMUtil().printAllPhysicalId(c);
 			h.title("[global]");
-			c = Clients.getClientByServiceAbbrProfile(serviceAbbr, "mumbai");
+			c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, "mumbai");
 			new IAMUtil().printAllPhysicalId(c);
 			System.out.println("\nBye~");
 			return;
 		}
 		if(serviceAbbr.equals(AmazonS3.ENDPOINT_PREFIX)){
 			h.title("[china]");
-			c = Clients.getClientByServiceAbbrProfile(serviceAbbr, "beijing");
+			c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, "beijing");
 			new S3Util().printAllPhysicalId(c);
 			h.title("[global]");
-			c = Clients.getClientByServiceAbbrProfile(serviceAbbr, "virginia");
+			c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, "virginia");
 			new S3Util().printAllPhysicalId(c);
 			System.out.println("\nBye~");
 			return;
 		}
 		for(String profile:GeneralUtil.SHOW_SERVICE_PROFILES){
 			if(GeneralUtil.isGlobalService(serviceAbbr) && !GeneralUtil.isChinaProfile(profile)){
-				c = Clients.getClientByServiceAbbrProfile(serviceAbbr, "mumbai");
+				c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, "mumbai");
 				switch (serviceAbbr){
 				case AmazonCloudFront.ENDPOINT_PREFIX: new CloudFrontUtil().printAllPhysicalId(c); break;
 				}
 				break;
 			}
-			if(!GeneralUtil.isCompatible(serviceAbbr, profile)){continue;}
+			h.title("["+profile+"]");
+			if(!GeneralUtil.isCompatible(serviceAbbr, profile)){
+				System.out.println("Not Supported -or- Service Unkown");
+				continue;
+			}
 			try{
-				c = Clients.getClientByServiceAbbrProfile(serviceAbbr, profile);
-				h.title("["+profile+"]");
+				c = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, profile);
 				switch (serviceAbbr){
 				case AmazonAutoScaling.ENDPOINT_PREFIX: new AutoscalingUtil().printAllPhysicalId(c); break;
 				case AmazonCloudFormation.ENDPOINT_PREFIX: new CloudFormationUtil().printAllPhysicalId(c); break;
@@ -823,10 +846,14 @@ public class Biu {
 				case AWSCloudTrail.ENDPOINT_PREFIX: new CloudTrailUtil().printAllPhysicalId(c); break;
 				case AWSCodeCommit.ENDPOINT_PREFIX: new CodeCommitUtil().printAllPhysicalId(c); break;
 				case AmazonCloudWatch.ENDPOINT_PREFIX: new CloudWatchUtil().printAllPhysicalId(c); break;
+				case AWSDirectoryService.ENDPOINT_PREFIX: new DirectoryUtil().printAllPhysicalId(c); break;
 				case AWSLogs.ENDPOINT_PREFIX: new CloudWatchLogsUtil().printAllPhysicalId(c); break;
 				case AmazonCodeDeploy.ENDPOINT_PREFIX: new CodeDeployUtil().printAllPhysicalId(c); break;
 				case AmazonConfig.ENDPOINT_PREFIX: new ConfigUtil().printAllPhysicalId(c); break;
+				case DataPipeline.ENDPOINT_PREFIX: new DataPipelineUtil().printAllPhysicalId(c); break;
 				case AmazonEC2.ENDPOINT_PREFIX: new EC2Util().printAllPhysicalId(c); break;
+				case AmazonECS.ENDPOINT_PREFIX: new EC2ContainerServiceUtil().printAllPhysicalId(c); break;
+				case AWSElasticBeanstalk.ENDPOINT_PREFIX: new ElasticBeanstalkUtil().printAllPhysicalId(c); break;
 				case AmazonElasticLoadBalancing.ENDPOINT_PREFIX: new ElasticLoadbalancingUtil().printAllPhysicalId(c); break;
 				case AmazonElasticMapReduce.ENDPOINT_PREFIX: new ElasticMapReduceUtil().printAllPhysicalId(c); break;
 				case AmazonElastiCache.ENDPOINT_PREFIX: new ElasticacheUtil().printAllPhysicalId(c); break;
@@ -835,9 +862,15 @@ public class Biu {
 				case AmazonKinesis.ENDPOINT_PREFIX: new KinesisUtil().printAllPhysicalId(c); break;
 				case AWSLambda.ENDPOINT_PREFIX: new LambdaUtil().printAllPhysicalId(c); break;
 				case AmazonRDS.ENDPOINT_PREFIX: new RDSUtil().printAllPhysicalId(c); break;
+				case AmazonDynamoDB.ENDPOINT_PREFIX: new DynamodbUtil().printAllPhysicalId(c); break;
 				case AmazonSNS.ENDPOINT_PREFIX: new SNSUtil().printAllPhysicalId(c); break;
 				case AmazonSQS.ENDPOINT_PREFIX: new SQSUtil().printAllPhysicalId(c); break;
-				default: System.out.println("Service name: "+serviceAbbr+" unkown.");
+				case AWSSecurityTokenService.ENDPOINT_PREFIX: new STSUtil().printAllPhysicalId(c); break;
+				case AmazonWorkspaces.ENDPOINT_PREFIX:
+						AWSDirectoryService ds = (AWSDirectoryService) Clients.getClientByServiceAbbrProfileProd(AWSDirectoryService.ENDPOINT_PREFIX, profile);
+						new WorkspacesUtil().printAllPhysicalId(new DirectoryServiceWorkspacesClients(ds,(AmazonWorkspaces)c)); 
+						break;
+				default: System.out.println("Service name: "+serviceAbbr+" NOT implemented");
 				}
 			}catch(AmazonClientException ex){
 				System.out.println("error: "+ex.getMessage());
@@ -846,12 +879,43 @@ public class Biu {
 		System.out.println("\nBye~");
 	}
 	
-	public void showSqsMessage(String queueName, String profile) throws Exception{
-		h.help(queueName,"<queue-name> <profile>");
-		SQSUtil util = new SQSUtil();
+	public void showSqsMessageS3Event(String queueName, String remove, String profile) throws Exception{
+		h.help(queueName,"<queue-name> <delete-message: true|false> <profile>");
+		SQSUtil sqsUtil = new SQSUtil();
+		S3Util s3Util = new S3Util();
 		AmazonSQS sqs = (AmazonSQS) Clients.getClientByServiceClassProfile(Clients.SQS, profile);
-		AWSSecurityTokenService sts = (AWSSecurityTokenService) Clients.getClientByServiceClassProfile(Clients.STS, profile);
-		util.showAllMessageInQueue(sqs, queueName, 7, profile);
+		List<Message> ms = sqs.receiveMessage(new ReceiveMessageRequest().withQueueUrl(sqsUtil.getQueueUrl(queueName, profile)).withVisibilityTimeout(2).withMaxNumberOfMessages(1)).getMessages();
+		if(ms.size()==0){
+			System.out.println("No message!");
+		}
+		else{
+			String body = ms.get(0).getBody();
+			
+			h.title("Message start");
+			System.out.println(body);
+			h.title("Message end");
+			SQSMessageBodyS3Event event = s3Util.evaluateSQSMessageBodyS3Event(body);
+			List<S3EventRecord> records = s3Util.evaludateS3EventRecords(event.getRecords());
+			for(S3EventRecord record:records){
+				h.title("Evaluated record:");
+				System.out.println("region => "+record.getAwsRegion());
+				System.out.println("event => "+record.getEventName());
+				System.out.println("source => "+record.getEventSource());
+				String bucketArn = s3Util.evaluateS3EventRecordS3Bucket(s3Util.evaluateS3EventRecordS3(record.getS3()).getBucket()).getArn();
+				String object = s3Util.evaluateS3EventRecordS3Object(s3Util.evaluateS3EventRecordS3(record.getS3()).getObject()).getKey();
+				System.out.println("\t"+bucketArn+"/"+object);
+			}
+			if(new Boolean(remove)){
+				sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(sqsUtil.getQueueUrl(queueName, profile)).withReceiptHandle(ms.get(0).getReceiptHandle()));
+			}
+		}
+	}
+	
+	public void showSqsMessage(String queueName, String remove, String profile) throws Exception{
+		h.help(queueName,"<queue-name> <delete-message: true|false> <profile>");
+		SQSUtil sqsUtil = new SQSUtil();
+		AmazonSQS sqs = (AmazonSQS) Clients.getClientByServiceClassProfile(Clients.SQS, profile);
+		sqsUtil.showAllMessageInQueue(sqs, queueName, 7, new Boolean(remove), profile);
 	}
 	
 	public void kinesisShowShard(String streamName, String profile) throws Exception{
@@ -965,6 +1029,18 @@ public class Biu {
 		this.dropmeRds(objectPrefixToClean, profile);
 		this.dropmeRdsSnapshot(objectPrefixToClean, profile);
 		System.out.println("Troll RTB");
+	}
+	
+	public void dropmeDs(String prefix, String profile) throws Exception{
+		h.help(prefix,"<object-prefix-to-clean> <profile>");
+		System.out.println("> Drop Directory with name prefix "+prefix+"* in "+Clients.getRegionCode(profile));
+		AWSDirectoryService ds =  (AWSDirectoryService) Clients.getClientByServiceClassProfile(Clients.DS, profile);
+		DirectoryUtil util = new DirectoryUtil();
+		for(DirectoryDescription dd:ds.describeDirectories().getDirectoryDescriptions()){
+			if(dd.getName().startsWith(prefix)){
+				util.deleteDirectory(ds, dd.getDirectoryId());
+			}
+		}
 	}
 	
 	public void dropmeRds(String prefix, String profile) throws Exception{
@@ -1301,7 +1377,7 @@ public class Biu {
 	
 	public void showActionByService(String serviceAbbr) throws Exception{
 		h.help(serviceAbbr,"<service-name-abbr>");
-		Object u = Clients.getClientByServiceAbbrProfile(serviceAbbr,"global");
+		Object u = Clients.getClientByServiceAbbrProfileDev(serviceAbbr,"mumbai");
 		Class<?> clazz = u.getClass();
 		System.out.println("# Actions can be called by "+clazz.getCanonicalName());
 		Method[] methods = clazz.getDeclaredMethods();
@@ -1579,13 +1655,13 @@ public class Biu {
 					}
 				}
 				if(attach){
-					this.addGp2EbsToEc2(instance.getInstanceId(), "16384", "/dev/xvdz", "beijing");
+					this.addGp2EbsToEc2(instance.getInstanceId(), "16384", "/dev/xvdz", "dropme", "beijing");
 				}
 			}
 		}
 	}
 	
-	public void addGp2EbsToEc2(String ec2InstanceId, String size, String device, String profile) throws Exception{
+	public void addGp2EbsToEc2(String ec2InstanceId, String size, String device, String name, String profile) throws Exception{
 		h.help(ec2InstanceId,"<ec2-instance-id> <vol-size-in-gb> <device> <profile>");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, profile);
 		DescribeInstancesRequest dir = new DescribeInstancesRequest();
@@ -1614,8 +1690,10 @@ public class Biu {
 		Volume ebs = cvrt.getVolume();
 		String volId = ebs.getVolumeId();
 		String volAz = ebs.getAvailabilityZone();
+		GeneralUtil.tagResource(ec2, volId, "Name", name);
 		System.out.println("New volume-id: "+volId);
 		System.out.println("New volume-zone: "+volAz);
+		System.out.println("Name: "+name);
 		AttachVolumeRequest avr = new AttachVolumeRequest()
 									.withInstanceId(ec2InstanceId)
 									.withVolumeId(volId)
@@ -1658,7 +1736,7 @@ public class Biu {
 							"Signer Override: "+cc.getSignerOverride()+"\n"+
 							"Socket Buffer Size Hint: (send) "+cc.getSocketBufferSizeHints()[0]+", (receive) "+cc.getSocketBufferSizeHints()[1]+"\n"+
 							"Socket Timeout: "+cc.getSocketTimeout()+"\n"+
-							"User Agent: "+cc.getUserAgent()
+							"User Agent: "+cc.getUserAgent()+"\n"
 				);
 	}
 	
@@ -1818,7 +1896,7 @@ public class Biu {
 	
 	public void showServiceClass(String serviceAbb) throws Exception{
 		h.help(serviceAbb,"<service-name-abbr>");
-		System.out.println("\n"+Clients.getServiceClassFromServiceAbbr(serviceAbb)+"\n");
+		System.out.println("\n"+Clients.getServiceClassFromServiceAbbrProd(serviceAbb)+"\n");
 	}
 	
 	public void showServiceAll() throws IllegalArgumentException, IllegalAccessException{
@@ -1839,10 +1917,80 @@ public class Biu {
 		}
 	}
 	
-	public void showInstanceType() throws Exception{
+	public void isInstanceTypeSupported(String typeName, String profile) throws Exception{
+		h.help(typeName,"<instance-type> <profile>");
+		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, profile);
+		Image ami = new EC2Util().getAmazonLinuxAmi(ec2);
+		RunInstancesRequest realreq = new RunInstancesRequest()
+				.withImageId(ami.getImageId())
+				.withInstanceType(typeName)
+				.withMinCount(1)
+				.withMaxCount(1);
+		try{
+			ec2.dryRun(realreq).getDryRunResponse();
+			System.out.println(" => Yes");
+		}catch(AmazonClientException ex){
+			if(ex.getMessage().contains("Unrecognized service response for the dry-run request")){
+				if(ex.getCause().getMessage().matches("^Your requested instance type .* is not supported in this region.*")){
+					System.out.println(" => No");
+				}
+				else if(ex.getCause().getMessage().contains("The requested configuration is currently not supported. Please check the documentation")){
+					System.out.println(" => Special");
+				}
+				else if(ex.getCause().getMessage().contains("Non-Windows instances with a virtualization type of 'hvm' are currently not supported for this instance type")){
+					System.out.println(" => Paravirtual");
+				}
+				else{
+					System.out.println(" => "+ex.getCause().getMessage());
+				}
+			}
+			else{
+				System.out.println(" => "+ex.getMessage());
+			}
+		}
+	}
+	
+	public void showInstanceType(String profile) throws Exception{
+		h.help(profile,"<profile>");
 		int i = 1;
+		h.title("All Instance Type");
 		for (InstanceType type : InstanceType.values()){
 			System.out.println(i+++") "+ type.toString());
+		}
+		h.title("Valid Instance Type for "+Clients.getRegionCode(profile));
+		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, profile);
+		Image ami = new EC2Util().getAmazonLinuxAmi(ec2);
+		int j=0;
+		for(InstanceType type: InstanceType.values()){
+			h.wait(300);
+			RunInstancesRequest realreq = new RunInstancesRequest()
+					.withImageId(ami.getImageId())
+					.withInstanceType(type)
+					.withMinCount(1)
+					.withMaxCount(1);
+			System.out.print(type.toString());
+			try{
+				ec2.dryRun(realreq).getDryRunResponse();
+				System.out.println(" => HVM");
+			}catch(AmazonClientException ex){
+				if(ex.getMessage().contains("Unrecognized service response for the dry-run request")){
+					if(ex.getCause().getMessage().matches("^Your requested instance type .* is not supported in this region.*")){
+						System.out.println(" => NO");
+					}
+					else if(ex.getCause().getMessage().contains("The requested configuration is currently not supported. Please check the documentation")){
+						System.out.println(" => N/A");
+					}
+					else if(ex.getCause().getMessage().contains("Non-Windows instances with a virtualization type of 'hvm' are currently not supported for this instance type")){
+						System.out.println(" => PV");
+					}
+					else{
+						System.out.println(" => "+ex.getCause().getMessage());
+					}
+				}
+				else{
+					System.out.println(" => "+ex.getMessage());
+				}
+			}
 		}
 	}
 	
@@ -1910,6 +2058,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <ami-id> <rolling-terminate-wait-minutes> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?")){
+			util.printAllAsg(aas);
+			return;
+		}
 		util.changeAMIForAsg(aas, asgName, ami, false, Integer.parseInt(rollingWaitMins));
 	}
 	
@@ -1917,6 +2069,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <instane-type> <rolling-terminate-wait-minutes> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?")){
+			util.printAllAsg(aas);
+			return;
+		}
 		util.changeInstanceTypeForAsg(aas, asgName, instanceType, false, Integer.parseInt(rollingWaitMins));
 	}
 	
@@ -1924,6 +2080,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <userdata-file-path> <rolling-terminate-wait-minutes> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?")){
+			util.printAllAsg(aas);
+			return;
+		}
 		util.changeUserdataForAsg(aas, asgName, this.base64EncodeFromFile(userdataFilePath), false, Integer.parseInt(rollingWaitMins));
 	}
 	
@@ -1931,6 +2091,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <launch-config-name> <rolling-terminate-wait-minutes> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?") || lcName.equals("?")){
+			util.printAllPhysicalId(aas);
+			return;
+		}
 		util.changeLaunchConfigurationForAsg(aas, asgName, lcName, false, Integer.parseInt(rollingWaitMins));
 	}
 	
@@ -1938,6 +2102,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <rolling-terminate-wait-minutes> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?")){
+			util.printAllAsg(aas);
+			return;
+		}
 		util.swapLaunchConfigurationForAsg(aas, asgName, false, Integer.parseInt(rollingWaitMins));
 	}
 	
@@ -1945,6 +2113,10 @@ public class Biu {
 		h.help(asgName,"<asg-name> <profile>");
 		AutoscalingUtil util = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(asgName.equals("?")){
+			util.printAllAsg(aas);
+			return;
+		}
 		util.printLaunchConfigurationForAsg(aas, asgName);
 	}
 	
@@ -1978,6 +2150,10 @@ public class Biu {
 		h.help(lc1,"<launch-config-#1> <launch-config-#2> <profile>");
 		AutoscalingUtil au = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, profile);
+		if(lc1.equals("?")||lc2.equals("?")){
+			au.printAllLc(aas);
+			return;
+		}
 		Map<String,String> diff = au.getLaunchConfigSideBySide(aas, lc1, lc2);
 		ArrayList<String> keys = new ArrayList<String>();
 		keys.addAll(diff.keySet());

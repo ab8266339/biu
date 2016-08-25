@@ -39,17 +39,37 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 
 public class AutoscalingUtil implements IUtil{
+	
+	private Helper h = new Helper();
 
 	public void printAllPhysicalId(Object asg) {
 		for (AutoScalingGroup group : ((AmazonAutoScaling)asg).describeAutoScalingGroups()
 				.getAutoScalingGroups()) {
 			System.out.println("asg: " + group.getAutoScalingGroupName());
+			System.out.println("\t"+group.getLaunchConfigurationName());
 		}
 		for (LaunchConfiguration lc : ((AmazonAutoScaling)asg).describeLaunchConfigurations()
 				.getLaunchConfigurations()) {
 			System.out.println("asg-lc: " + lc.getLaunchConfigurationName());
 		}
-	}	
+	}
+	
+	public void printAllAsg(AmazonAutoScaling asg){
+		h.title("All ASG and Their Current Launch Config");
+		for (AutoScalingGroup group : ((AmazonAutoScaling)asg).describeAutoScalingGroups()
+				.getAutoScalingGroups()) {
+			System.out.println("asg: " + group.getAutoScalingGroupName());
+			System.out.println("\tlc:"+group.getLaunchConfigurationName());
+		}
+	}
+	
+	public void printAllLc(AmazonAutoScaling asg){
+		h.title("All LC");
+		for (LaunchConfiguration lc : ((AmazonAutoScaling)asg).describeLaunchConfigurations()
+				.getLaunchConfigurations()) {
+			System.out.println("asg-lc: " + lc.getLaunchConfigurationName());
+		}
+	}
 	
 	public Map<String,String> getLaunchConfigSideBySide(AmazonAutoScaling asg, String lc1Name, String lc2Name){
 		Hashtable<String,String> diff = new Hashtable<String,String>();
@@ -851,8 +871,8 @@ public class AutoscalingUtil implements IUtil{
 	
 	public void printLaunchConfigurationForAsg(AmazonAutoScaling aas, String asgName){
 		String currentLcName = aas.describeAutoScalingGroups(new DescribeAutoScalingGroupsRequest().withAutoScalingGroupNames(asgName)).getAutoScalingGroups().get(0).getLaunchConfigurationName();
-		System.out.println("______________\\");
-		System.out.println("Current launch configuration: "+currentLcName);
+		h.title("Current launch configuration");
+		System.out.println(currentLcName);
 		String lcNamePrefix = currentLcName.replaceAll("-v[0-9]+$", "");
 		List<LaunchConfiguration> confs = aas.describeLaunchConfigurations().getLaunchConfigurations();
 		ArrayList<String> candidateConfNames = new ArrayList<String>();
@@ -863,9 +883,9 @@ public class AutoscalingUtil implements IUtil{
 				candidateConfNames.add(nameHolder);
 			}
 		}
-		System.out.println("______________\\");
+		h.title("Available launch configuration");
 		for(String s:candidateConfNames){
-			System.out.println("Available launch configuration: "+s);
+			System.out.println(s);
 		}
 	}
 	

@@ -14,6 +14,8 @@ import java.util.List;
 
 import bglutil.common.types.GlacierArchive;
 import bglutil.common.types.GlacierInventoryRetrievalJobOutput;
+import bglutil.common.types.GlacierInventoryRetrievalParameters;
+import bglutil.common.types.SNSNotificationMessageGlacierJobRetrieveInventory;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.glacier.AmazonGlacier;
@@ -34,6 +36,41 @@ public class GlacierUtil implements IUtil{
 		for(DescribeVaultOutput voutput:((AmazonGlacier)glacier).listVaults(new ListVaultsRequest().withAccountId("-")).getVaultList()){
 			System.out.println("glacier-vault: "+voutput.getVaultName()+", archives: "+voutput.getNumberOfArchives());
 		}
+	}
+	
+	// Glacier
+	public GlacierInventoryRetrievalParameters evaludateSNSGlacierInventoryRetrievalParameters(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new GlacierInventoryRetrievalParameters(
+					n.get("EndDate").asText(),
+					n.get("Format").asText(),
+					n.get("Limit").asLong(),
+					n.get("Marker").asText(),
+					n.get("StartDate").asText()
+				);
+	}
+	
+	public SNSNotificationMessageGlacierJobRetrieveInventory evaluateSNSMessageGlacierJobRetrieveInventory(String jsonString){
+		JsonNode n = GeneralUtil.getJsonNode(jsonString);
+		return new SNSNotificationMessageGlacierJobRetrieveInventory(
+					n.get("Action").asText(),
+					n.get("ArchiveId").asText(),
+					n.get("ArchiveSHA256TreeHash").asText(),
+					n.get("ArchiveSizeInBytes").asLong(),
+					n.get("Completed").asText(),
+					n.get("CompletionDate").asText(),
+					n.get("CreationDate").asText(),
+					n.get("InventoryRetrievalParameters").toString(),
+					n.get("InventorySizeInBytes").asLong(),
+					n.get("JobDescription").asText(),
+					n.get("JobId").asText(),
+					n.get("RetrievalByteRange").asLong(),
+					n.get("SHA256TreeHash").asText(),
+					n.get("SNSTopic").asText(),
+					n.get("StatusCode").asText(),
+					n.get("StatusMessage").asText(),
+					n.get("VaultARN").asText()
+				);
 	}
 	
 	public GlacierInventoryRetrievalJobOutput evaludateGlacierInventoryRetrievalJobOuptut(String jsonString){
@@ -75,7 +112,6 @@ public class GlacierUtil implements IUtil{
 		}
 		br.close();
 		String output = new String(sb);
-		SNSUtil util = new SNSUtil();
 		String archiveList = this.evaludateGlacierInventoryRetrievalJobOuptut(output).getArchiveList();
 		List<GlacierArchive> archives = this.evaludateGlacierArchives(archiveList);
 		for(GlacierArchive ga:archives){
@@ -101,7 +137,6 @@ public class GlacierUtil implements IUtil{
 		}
 		br.close();
 		String output = new String(sb);
-		SNSUtil util = new SNSUtil();
 		String archiveList = this.evaludateGlacierInventoryRetrievalJobOuptut(output).getArchiveList();
 		List<GlacierArchive> archives = this.evaludateGlacierArchives(archiveList);
 		for(GlacierArchive ga:archives){

@@ -1,30 +1,25 @@
 package bglutil.common;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import bglutil.common.types.GlacierArchive;
-import bglutil.common.types.GlacierInventoryRetrievalJobOutput;
-import bglutil.common.types.SNSGlacierInventoryRetrievalParameters;
-import bglutil.common.types.SNSMessageGlacierJobRetrieveInventory;
 import bglutil.common.types.SNSNotification;
-import bglutil.main.Biu;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.DeleteTopicRequest;
 import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sns.model.Subscription;
 import com.amazonaws.services.sns.model.Topic;
-import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class SNSUtil implements IUtil{
 	
-	public void printAllPhysicalId(Object sns){
+	public void printAllPhysicalId(Object o){
+		AmazonSNS sns = (AmazonSNS) o;
 		for(Topic t: ((AmazonSNS)sns).listTopics().getTopics()){
 			System.out.println("sns: "+t.getTopicArn());
+			for(Subscription s:sns.listSubscriptionsByTopic(t.getTopicArn()).getSubscriptions()){
+				System.out.println("\t=> "+s.getProtocol()+", "+s.getEndpoint());
+			}
 		}
 	}
 	
@@ -56,54 +51,19 @@ public class SNSUtil implements IUtil{
 		sns.deleteTopic(request);
 	}
 	
-	// Glacier
-	public SNSGlacierInventoryRetrievalParameters evaludateSNSGlacierInventoryRetrievalParameters(String jsonString){
-		JsonNode n = GeneralUtil.getJsonNode(jsonString);
-		return new SNSGlacierInventoryRetrievalParameters(
-					n.get("EndDate").asText(),
-					n.get("Format").asText(),
-					n.get("Limit").asLong(),
-					n.get("Marker").asText(),
-					n.get("StartDate").asText()
-				);
-	}
-	
-	public SNSMessageGlacierJobRetrieveInventory evaluateSNSMessageGlacierJobRetrieveInventory(String jsonString){
-		JsonNode n = GeneralUtil.getJsonNode(jsonString);
-		return new SNSMessageGlacierJobRetrieveInventory(
-					n.get("Action").asText(),
-					n.get("ArchiveId").asText(),
-					n.get("ArchiveSHA256TreeHash").asText(),
-					n.get("ArchiveSizeInBytes").asLong(),
-					n.get("Completed").asText(),
-					n.get("CompletionDate").asText(),
-					n.get("CreationDate").asText(),
-					n.get("InventoryRetrievalParameters").toString(),
-					n.get("InventorySizeInBytes").asLong(),
-					n.get("JobDescription").asText(),
-					n.get("JobId").asText(),
-					n.get("RetrievalByteRange").asLong(),
-					n.get("SHA256TreeHash").asText(),
-					n.get("SNSTopic").asText(),
-					n.get("StatusCode").asText(),
-					n.get("StatusMessage").asText(),
-					n.get("VaultARN").asText()
-				);
-	}
-	
 	public SNSNotification evaluateSNSNotification(String jsonString){
 		JsonNode n = GeneralUtil.getJsonNode(jsonString);
 		return new SNSNotification(
 					n.get("Type").asText(),
 					n.get("MessageId").asText(),
 					n.get("TopicArn").asText(),
+					n.get("Subject").asText(),
 					n.get("Message").toString(),
 					n.get("Timestamp").asText(),
 					n.get("SignatureVersion").asText(),
 					n.get("Signature").asText(),
 					n.get("SigningCertURL").asText(),
-					n.get("UnsubscribeURL").asText()
-				);
+					n.get("UnsubscribeURL").asText());
 	}
 	
 }

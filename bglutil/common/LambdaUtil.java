@@ -6,7 +6,7 @@ import com.amazonaws.services.lambda.model.FunctionConfiguration;
 public class LambdaUtil implements IUtil{
 	public void printAllPhysicalId(Object lambda){
 		for(FunctionConfiguration fc:((AWSLambda)lambda).listFunctions().getFunctions()){
-			System.out.println("lambda: "+fc.getFunctionName());
+			System.out.println("lambda: "+fc.getFunctionName()+", "+fc.getFunctionArn()+", "+fc.getVersion());
 		}
 	}
 }
