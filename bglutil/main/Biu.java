@@ -69,7 +69,6 @@ import bglutil.conf.Config;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.Request;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.policy.Policy;
@@ -115,7 +114,6 @@ import com.amazonaws.services.dynamodbv2.model.ListTablesRequest;
 import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.AttachVolumeRequest;
 import com.amazonaws.services.ec2.model.AttachVolumeResult;
 import com.amazonaws.services.ec2.model.CreateVolumeRequest;
@@ -131,7 +129,6 @@ import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
 import com.amazonaws.services.ec2.model.DetachVolumeRequest;
-import com.amazonaws.services.ec2.model.DryRunSupportedRequest;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
@@ -201,6 +198,7 @@ import com.amazonaws.services.autoscaling.model.LaunchConfiguration;
 public class Biu {
 	
 	private static final Helper h = new Helper();
+	private static final Config c = new Config();
 	
 	// Deprecated. Retained for showGap().
 	public static final TreeMap<String,String> SERVICEABB_SERVICENAME = new TreeMap<String,String>();
@@ -399,17 +397,18 @@ public class Biu {
 
 	public void demoSqsOrder(String longPoll) throws Exception{
 		h.help(longPoll,"<longPoll: true | false>");
-		System.out.println("Sending 7 messages to "+Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		String queueUrl = c.c(Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		System.out.println("Sending 7 messages to "+queueUrl);
 		AmazonSQS sqs = (AmazonSQS) Clients.getClientByServiceClassProfile(Clients.SQS, "beijing");
-		SendMessageRequest smr = new SendMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		SendMessageRequest smr = new SendMessageRequest().withQueueUrl(queueUrl);
 		for(int i=1;i<8;i++){
 			smr.setMessageBody("#"+i+" Test Message");
 			System.out.println("Sending => "+"#"+i+" Test Message");
 			sqs.sendMessage(smr);
 		}
 		System.out.println("Sending Done.");
-		System.out.println("Try to receive message from "+Config.BEIJING_DEMO_SQS_QUEUE_URL);
-		ReceiveMessageRequest rmr = new ReceiveMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL);
+		System.out.println("Try to receive message from "+queueUrl);
+		ReceiveMessageRequest rmr = new ReceiveMessageRequest().withQueueUrl(queueUrl);
 		rmr.setMaxNumberOfMessages(1); // 1~10 Returned messages can be fewer, it is NOT guaranteed.
 		if(Boolean.valueOf(longPoll)){
 			rmr.setWaitTimeSeconds(20);
@@ -424,7 +423,7 @@ public class Biu {
 			title = "Receiving => "+message.getBody();
 				System.out.print(title);
 				String receiptHandle = message.getReceiptHandle();
-				sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(Config.BEIJING_DEMO_SQS_QUEUE_URL).withReceiptHandle(receiptHandle));
+				sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(queueUrl).withReceiptHandle(receiptHandle));
 				System.out.println(", deleted");
 			}
 		}
@@ -598,10 +597,12 @@ public class Biu {
 		STSUtil util = new STSUtil();
 		
 		h.title("GetSessionToken /w MFA from Permanent Crendentials");
-		AWSSecurityTokenService stsPawnGlobal = (AWSSecurityTokenService) Clients.getClientByServiceClassProfile(Clients.STS, Config.MFA_USERNAME);
+		String mfaUsername = c.c(Config.MFA_USERNAME);
+		String mfaArn = c.c(Config.MFA_ARN);
+		AWSSecurityTokenService stsPawnGlobal = (AWSSecurityTokenService) Clients.getClientByServiceClassProfile(Clients.STS, mfaUsername);
 		try{
 			System.out.println("Calling user: "+stsPawnGlobal.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
-			BasicSessionCredentials bsc1 = util.getSessionTokenMFA(stsPawnGlobal, durationSec, Config.MFA_ARN, tokenCode);
+			BasicSessionCredentials bsc1 = util.getSessionTokenMFA(stsPawnGlobal, durationSec, mfaArn, tokenCode);
 			System.out.println("Temp AK: "+bsc1.getAWSAccessKeyId());
 		}catch (AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -636,8 +637,9 @@ public class Biu {
 		//String assumedUserArn = null;
 		System.out.println("Calling user: "+stsChina.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
 		BasicSessionCredentials bsc4 = null;
+		String exampleRoleArn = c.c(Config.EXAMPLE_IAM_ROLE_ARN);
 		try{
-			bsc4 = util.assumeRole(stsChina, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "developer");
+			bsc4 = util.assumeRole(stsChina, durationSec, exampleRoleArn, "developer");
 			System.out.println("Temp AK: "+bsc4.getAWSAccessKeyId());
 		}catch(AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -648,7 +650,7 @@ public class Biu {
 		stsRole.setRegion(Region.getRegion(Regions.CN_NORTH_1));
 		try{
 			System.out.println("Calling user: "+stsRole.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
-			BasicSessionCredentials bsc14 = util.assumeRole(stsChina, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "developer");
+			BasicSessionCredentials bsc14 = util.assumeRole(stsChina, durationSec, exampleRoleArn, "developer");
 			System.out.println("AK: "+bsc14.getAWSAccessKeyId());
 		}catch(AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -674,7 +676,7 @@ public class Biu {
 		stsFed.setRegion(Region.getRegion(Regions.CN_NORTH_1));
 		try{
 			System.out.println("Calling user: "+stsFed.getCallerIdentity(new GetCallerIdentityRequest()).getArn());
-			BasicSessionCredentials bsc10 = util.assumeRole(stsFed, durationSec, Config.EXAMPLE_IAM_ROLE_ARN, "batman007");
+			BasicSessionCredentials bsc10 = util.assumeRole(stsFed, durationSec, exampleRoleArn, "batman007");
 			System.out.println("Temp AK: "+bsc10.getAWSAccessKeyId());
 		}catch (AmazonServiceException ex){
 			System.out.println(ex.getMessage());
@@ -709,7 +711,7 @@ public class Biu {
 		h.title("AssumeRole from Instance Profile");
 		System.out.println("Calling user: EC2 Instance Profile");
 		try{
-			BasicSessionCredentials bsc8 = util.assumeRole(stsIp, 900, Config.EXAMPLE_IAM_ROLE_ARN, "one-ec2-instance");
+			BasicSessionCredentials bsc8 = util.assumeRole(stsIp, 900, exampleRoleArn, "one-ec2-instance");
 			System.out.println("Temp AK: "+bsc8.getAWSAccessKeyId());
 		}catch(AmazonClientException ex){
 			System.out.println(ex.getMessage());
@@ -718,6 +720,9 @@ public class Biu {
 	
 	public void showResource(String serviceAbbr, String profile) throws Exception{
 		h.help(serviceAbbr,"<service-name-abbr> <profile>");
+		if(serviceAbbr.equals("?")){
+			this.showServiceAll();return;
+		}
 		if(GeneralUtil.isCompatible(serviceAbbr, profile)){
 			IUtil util = Clients.getUtilByServiceAbbr(serviceAbbr);
 			Object client = Clients.getClientByServiceAbbrProfileProd(serviceAbbr, profile);
@@ -1626,6 +1631,12 @@ public class Biu {
 		util.listObjectsInBucket(s3, bucketName, keyPrefix);
 	}
 	
+	public void demoCwCustom() throws Exception{
+		h.title("Check Biu/Demo Namespace in CloudWatch Beijing");
+		AmazonCloudWatch cw = (AmazonCloudWatch) Clients.getClientByServiceClassProfile(Clients.CW, "beijing");
+		new CloudWatchUtil().cloudWatchDemoBeijingAQI(cw, 10, 999999);
+	}
+	
 	public void demoEbs() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "beijing");
 		EC2Util util = new EC2Util();
@@ -1751,12 +1762,13 @@ public class Biu {
 		String basename = fileLocalPath.substring(fileLocalPath.lastIndexOf("/"));
 		String key = "working-share"+basename;
 		System.out.println("Key: "+key);
-		PutObjectRequest por = new PutObjectRequest(Config.BACKUP_BUCKET,key,new File(fileLocalPath));
+		String bucketName = c.c(Config.BACKUP_BUCKET);
+		PutObjectRequest por = new PutObjectRequest(bucketName,key,new File(fileLocalPath));
 		PutObjectResult pors = s3.putObject(por);
 		String etag = pors.getETag();
 		System.out.println("ETag: "+etag);
 		S3Util s3util = new S3Util();
-		URL url = s3util.getPresignedUrl(Config.BACKUP_BUCKET,key,Integer.valueOf(validDurationInDays)*24,"GET", "beijing");
+		URL url = s3util.getPresignedUrl(bucketName,key,Integer.valueOf(validDurationInDays)*24,"GET", "beijing");
 		String presignedUrl = url.toString();
 		System.out.println(presignedUrl);
 	}
@@ -1792,22 +1804,28 @@ public class Biu {
 	public void closeBeijingNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "beijing");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_BEIJING);
-		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_BEIJING);
+		String appNacl = c.c(Config.APP_NACL_BEIJING);
+		util.denyAllIngressOnNACL(ec2, appNacl);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_BEIJING);
+		util.denyAllIngressOnNACL(ec2, defaultNacl);
 	}
 	
 	public void closeVirginiaNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "virginia");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_VIR);
-		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_VIR);
+		String appNacl = c.c(Config.APP_NACL_VIR);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_VIR);
+		util.denyAllIngressOnNACL(ec2, appNacl);
+		util.denyAllIngressOnNACL(ec2, defaultNacl);
 	}
 	
 	public void closeTokyoNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "tokyo");
 		EC2Util util = new EC2Util();
-		util.denyAllIngressOnNACL(ec2, Config.APP_NACL_TOKYO);
-		util.denyAllIngressOnNACL(ec2, Config.DEFAULT_NACL_TOKYO);
+		String appNacl = c.c(Config.APP_NACL_TOKYO);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_TOKYO);
+		util.denyAllIngressOnNACL(ec2, appNacl);
+		util.denyAllIngressOnNACL(ec2, defaultNacl);
 	}
 	
 	
@@ -1876,22 +1894,28 @@ public class Biu {
 	public void openBeijingNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "beijing");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, Config.APP_NACL_BEIJING);
-		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_BEIJING);
+		String appNacl = c.c(Config.APP_NACL_BEIJING);
+		util.removeIngressNo49(ec2, appNacl);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_BEIJING);
+		util.removeIngressNo49(ec2, defaultNacl);
 	}
 	
 	public void openVirginiaNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "virginia");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, Config.APP_NACL_VIR);
-		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_VIR);
+		String appNacl = c.c(Config.APP_NACL_VIR);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_VIR);
+		util.removeIngressNo49(ec2, appNacl);
+		util.removeIngressNo49(ec2, defaultNacl);
 	}
 	
 	public void openTokyoNetwork() throws Exception{
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "tokyo");
 		EC2Util util = new EC2Util();
-		util.removeIngressNo49(ec2, Config.APP_NACL_TOKYO);
-		util.removeIngressNo49(ec2, Config.DEFAULT_NACL_TOKYO);
+		String appNacl = c.c(Config.APP_NACL_TOKYO);
+		String defaultNacl = c.c(Config.DEFAULT_NACL_TOKYO);
+		util.removeIngressNo49(ec2, appNacl);
+		util.removeIngressNo49(ec2, defaultNacl);
 	}
 	
 	public void showServiceClass(String serviceAbb) throws Exception{
@@ -1900,6 +1924,7 @@ public class Biu {
 	}
 	
 	public void showServiceAll() throws IllegalArgumentException, IllegalAccessException{
+		h.title("#  Abbreviation - Service");
 		int i=1;
 		for(String serviceName:SERVICEABB_SERVICENAME.keySet()){
 			System.out.println(i+++": "+serviceName+" - "+SERVICEABB_SERVICENAME.get(serviceName));
@@ -2133,12 +2158,16 @@ public class Biu {
 		AutoscalingUtil au = new AutoscalingUtil();
 		AmazonAutoScaling aas = (AmazonAutoScaling) Clients.getClientByServiceClassProfile(Clients.ASG, "beijing");
 		AmazonEC2 ec2 = (AmazonEC2) Clients.getClientByServiceClassProfile(Clients.EC2, "beijing");
+		String keyName = c.c(Config.BEIJING_EC2_KEYPAIR_NAME);
+		String subnet1 = c.c(Config.BEIJING_DEFAULT_VPC_SUBNET1);
+		String subnet2 = c.c(Config.BEIJING_DEFAULT_VPC_SUBNET2);
+		String allowAllSg = c.c(Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP);
 		if(au.checkNewLaunchConfigAvail(aas, commands[0])){
 			if(commands[2].startsWith("file://")){
-				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, new File(commands[2].replaceFirst("file://","")), Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
+				au.commandsToAmiForAsgByName(aas, ec2, keyName, commands[0], subnet1, subnet2, allowAllSg, new File(commands[2].replaceFirst("file://","")), Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
 			}
 			else{
-				au.commandsToAmiForAsgByName(aas, ec2, Config.BEIJING_EC2_KEYPAIR_NAME, commands[0], Config.BEIJING_DEFAULT_VPC_SUBNET1, Config.BEIJING_DEFAULT_VPC_SUBNET2, Config.BEIJING_DEFAULT_VPC_ALLOWALL_SECURITY_GROUP, commands, Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
+				au.commandsToAmiForAsgByName(aas, ec2, keyName, commands[0], subnet1, subnet2, allowAllSg, commands, Integer.parseInt(commands[1]), "commandsToAmi-"+commands[0], false);
 			}
 		}
 		else{

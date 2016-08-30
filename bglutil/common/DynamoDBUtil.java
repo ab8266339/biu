@@ -19,7 +19,7 @@ public class DynamodbUtil implements IUtil{
 	
 	public void printAllPhysicalId(Object ddb){
 		for(String tablename:((AmazonDynamoDB)ddb).listTables().getTableNames()){
-			System.out.println("dynamodb: "+tablename);
+			System.out.println("dynamodb-table: "+tablename);
 		}
 	}
 	

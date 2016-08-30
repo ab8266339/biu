@@ -5,7 +5,6 @@ import com.amazonaws.services.rds.model.DBInstance;
 import com.amazonaws.services.rds.model.DBSnapshot;
 import com.amazonaws.services.rds.model.DeleteDBInstanceRequest;
 import com.amazonaws.services.rds.model.DeleteDBSnapshotRequest;
-import com.amazonaws.services.rds.model.DescribeDBSnapshotsRequest;
 
 public class RDSUtil implements IUtil{
 	public void printAllPhysicalId(Object o){

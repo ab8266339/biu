@@ -23,11 +23,9 @@ import com.amazonaws.services.glacier.model.DeleteArchiveRequest;
 import com.amazonaws.services.glacier.model.DescribeVaultOutput;
 import com.amazonaws.services.glacier.model.GetJobOutputRequest;
 import com.amazonaws.services.glacier.model.InitiateJobRequest;
-import com.amazonaws.services.glacier.model.InitiateJobResult;
 import com.amazonaws.services.glacier.model.InventoryRetrievalJobInput;
 import com.amazonaws.services.glacier.model.JobParameters;
 import com.amazonaws.services.glacier.model.ListVaultsRequest;
-import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class GlacierUtil implements IUtil{

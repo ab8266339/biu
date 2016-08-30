@@ -1,8 +1,5 @@
 package bglutil.common;
 
-import org.apache.http.conn.ConnectTimeoutException;
-
-import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.config.AmazonConfig;
 import com.amazonaws.services.config.model.ConfigurationRecorder;
 
